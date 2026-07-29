@@ -1,20 +1,27 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ClearIcon from '@mui/icons-material/Clear'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
-import FormControl from '@mui/material/FormControl'
-import InputLabel from '@mui/material/InputLabel'
-import MenuItem from '@mui/material/MenuItem'
+import IconButton from '@mui/material/IconButton'
 import Paper from '@mui/material/Paper'
-import Select from '@mui/material/Select'
 import Stack from '@mui/material/Stack'
+import Table from '@mui/material/Table'
+import TableBody from '@mui/material/TableBody'
+import TableCell from '@mui/material/TableCell'
+import TableHead from '@mui/material/TableHead'
+import TableRow from '@mui/material/TableRow'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { cardsApi } from '../api'
 import { useQuiz } from '../store/QuizContext'
-import type { Card, CardsGroup, CardsPriority, QuizField } from '../types/models'
+import type { Card, CardsGroup, CardsPriority } from '../types/models'
+
+const CHIP_LABEL_MAX = 30
+const MAX_VISIBLE_CHIPS = 30
+const LIMIT_OPTIONS = [25, 13, 12, 8, 6, 5, 3]
 
 interface CardsSelectorProps {
   memoryNodeId: number
@@ -23,10 +30,32 @@ interface CardsSelectorProps {
   selectedGroup: CardsGroup | null
 }
 
-function cardPreview(card: Card): string {
+function parseUntil(query: string): number {
+  const match = query.match(/-until\s+(\d+)/i)
+  return match ? Number(match[1]) : 1
+}
+
+function upsertCountFilter(query: string, value: number): string {
+  const clause = `count = ${value}`
+  const replaced = query.replace(/\bcount\s*(?:===|==|=|<=|>=|<|>)\s*-?\d+/i, clause)
+  if (replaced !== query) return replaced.trim()
+  const trimmed = query.trim()
+  return trimmed ? `${trimmed} ${clause}` : clause
+}
+
+function upsertLimit(query: string, limit: number): string {
+  const clause = `--limit ${limit}`
+  const replaced = query.replace(/--?limit\s+\d+/i, clause)
+  if (replaced !== query) return replaced.trim()
+  const trimmed = query.trim()
+  return trimmed ? `${trimmed} ${clause}` : clause
+}
+
+function cardChipLabel(card: Card): string {
   const first = card.question[0]
-  if (!first) return '—'
-  return first.text || first.code || first.formula || first.imagePath || first.type
+  const raw =
+    first?.text || first?.code || first?.formula || first?.imagePath || `#${card.id}`
+  return raw.length > CHIP_LABEL_MAX ? `${raw.slice(0, CHIP_LABEL_MAX)}...` : raw
 }
 
 export function CardsSelector({
@@ -37,70 +66,99 @@ export function CardsSelector({
 }: CardsSelectorProps) {
   const navigate = useNavigate()
   const { startQuiz } = useQuiz()
-  const [field, setField] = useState<QuizField>('count')
-  const [untilText, setUntilText] = useState('1')
-  const [countText, setCountText] = useState('')
+  const [query, setQuery] = useState('quiz -until 1')
+  const [selectedCards, setSelectedCards] = useState<Card[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const stats = useMemo(() => {
     const buckets = new Map<number, number>()
     for (const card of cards) {
-      const value = field === 'count' ? card.count : card.practiceCount
-      buckets.set(value, (buckets.get(value) ?? 0) + 1)
+      buckets.set(card.count, (buckets.get(card.count) ?? 0) + 1)
     }
     return [...buckets.entries()].sort((a, b) => a[0] - b[0])
-  }, [cards, field])
+  }, [cards])
 
-  const untilTrimmed = untilText.trim()
-  const untilNum = Number(untilTrimmed)
-  const untilError =
-    untilTrimmed === ''
-      ? 'Required'
-      : !Number.isInteger(untilNum) || untilNum < 0
-        ? 'Whole number ≥ 0'
-        : ''
+  const visibleChips = selectedCards.slice(0, MAX_VISIBLE_CHIPS)
+  const hasMoreChips = selectedCards.length > MAX_VISIBLE_CHIPS
 
-  const countTrimmed = countText.trim()
-  const countNum = Number(countTrimmed)
-  const countError =
-    countTrimmed !== '' && (!Number.isInteger(countNum) || countNum < 0)
-      ? 'Whole number ≥ 0'
-      : ''
+  useEffect(() => {
+    setSelectedCards([])
+    setError('')
+  }, [selectedPriority, selectedGroup, memoryNodeId])
 
-  const hasErrors = Boolean(untilError || countError)
+  const selectByQuery = useCallback(
+    async (nextQuery: string) => {
+      setLoading(true)
+      setError('')
+      try {
+        const result = await cardsApi.byQuery({
+          id: memoryNodeId,
+          query: nextQuery,
+          priority: selectedPriority ?? undefined,
+          group: selectedGroup ?? undefined,
+        })
+        setSelectedCards(result)
+        if (result.length === 0) {
+          setError('No cards matched the query')
+        }
+      } catch (err) {
+        setSelectedCards([])
+        setError(err instanceof Error ? err.message : 'Failed to select cards')
+      } finally {
+        setLoading(false)
+      }
+    },
+    [memoryNodeId, selectedGroup, selectedPriority],
+  )
 
-  const query = useMemo(() => {
-    if (hasErrors) return ''
-    const base = `${field === 'practiceCount' ? 'pquiz' : 'quiz'} -until ${untilNum}`
-    return countTrimmed === '' ? base : `${base} ${field} = ${countNum}`
-  }, [field, untilNum, countTrimmed, countNum, hasErrors])
+  const onCountRowClick = async (value: number) => {
+    const nextQuery = upsertCountFilter(query, value)
+    setQuery(nextQuery)
+    await selectByQuery(nextQuery)
+  }
 
-  const selectedCards = useMemo(() => {
-    if (hasErrors) return []
-    if (countTrimmed === '') return cards
-    return cards.filter((c) => (field === 'count' ? c.count : c.practiceCount) === countNum)
-  }, [cards, field, countTrimmed, countNum, hasErrors])
+  const onAddLimit = async (limit: number) => {
+    const nextQuery = upsertLimit(query, limit)
+    setQuery(nextQuery)
+    await selectByQuery(nextQuery)
+  }
+
+  const clearSelection = () => {
+    setSelectedCards([])
+    setError('')
+    setQuery((q) =>
+      q
+        .replace(/\bcount\s*(?:===|==|=|<=|>=|<|>)\s*-?\d+/gi, '')
+        .replace(/--?limit\s+\d+/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim() || 'quiz -until 1',
+    )
+  }
 
   const start = async () => {
-    if (hasErrors || !query) return
     setLoading(true)
     setError('')
     try {
-      const result = await cardsApi.byQuery({
-        id: memoryNodeId,
-        query,
-        priority: selectedPriority ?? undefined,
-        group: selectedGroup ?? undefined,
-      })
+      const result =
+        selectedCards.length > 0
+          ? selectedCards
+          : await cardsApi.byQuery({
+              id: memoryNodeId,
+              query,
+              priority: selectedPriority ?? undefined,
+              group: selectedGroup ?? undefined,
+            })
       if (result.length === 0) {
         setError('No cards matched the query')
         return
       }
+      setSelectedCards(result)
+      const until = parseUntil(query)
       startQuiz({
         cards: result,
-        fieldToUpdate: field,
-        until: untilNum,
+        fieldToUpdate: 'count',
+        until,
         lastNodeId: memoryNodeId,
         query,
       })
@@ -118,72 +176,105 @@ export function CardsSelector({
         Quiz
       </Typography>
       <Stack spacing={1.5}>
-        <FormControl size="small">
-          <InputLabel>Track field</InputLabel>
-          <Select
-            label="Track field"
-            value={field}
-            onChange={(e) => setField(e.target.value as QuizField)}
-          >
-            <MenuItem value="count">count</MenuItem>
-            <MenuItem value="practiceCount">practiceCount</MenuItem>
-          </Select>
-        </FormControl>
-
         <Box>
-          <Typography variant="caption" color="text.secondary">
-            Distribution
+          <Typography variant="subtitle2" gutterBottom>
+            count ({cards.length})
           </Typography>
-          <Stack direction="row" sx={{ mt: 0.5, flexWrap: 'wrap', gap: 1 }}>
-            {stats.map(([value, count]) => (
-              <Typography key={value} variant="body2">
-                {value}: {count}
-              </Typography>
-            ))}
-            {stats.length === 0 && (
-              <Typography variant="body2" color="text.secondary">
-                —
-              </Typography>
-            )}
-          </Stack>
+          {stats.length > 0 ? (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>count</TableCell>
+                  <TableCell align="right">Quantity</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {stats.map(([value, quantity]) => (
+                  <TableRow
+                    key={value}
+                    hover
+                    sx={{ cursor: 'pointer' }}
+                    onClick={() => void onCountRowClick(value)}
+                  >
+                    <TableCell>
+                      <Typography color="primary" variant="body2">
+                        {value}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography color="primary" variant="body2">
+                        {quantity}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              —
+            </Typography>
+          )}
         </Box>
 
-        <Stack direction="row" spacing={1.5}>
+        <Stack direction="row" spacing={1} alignItems="flex-start">
           <TextField
-            label="Until"
+            label="Query"
             size="small"
-            type="number"
-            value={untilText}
-            onChange={(e) => setUntilText(e.target.value)}
-            error={Boolean(untilError)}
-            helperText={untilError || 'Repeat threshold'}
-            sx={{ flex: 1 }}
+            fullWidth
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                void selectByQuery(query)
+              }
+            }}
+            helperText="Enter to select · count = 0 · --limit 25"
           />
-          <TextField
-            label="Count"
-            size="small"
-            type="number"
-            value={countText}
-            onChange={(e) => setCountText(e.target.value)}
-            error={Boolean(countError)}
-            helperText={countError || 'Optional filter'}
-            sx={{ flex: 1 }}
-          />
+          {selectedCards.length > 0 && (
+            <IconButton aria-label="clear selection" onClick={clearSelection} sx={{ mt: 0.5 }}>
+              <ClearIcon />
+            </IconButton>
+          )}
         </Stack>
 
-        <Box>
-          <Typography variant="body2" color="text.secondary">
-            Selected: {selectedCards.length}
-          </Typography>
-          <Stack direction="row" sx={{ mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
-            {selectedCards.slice(0, 12).map((card) => (
-              <Chip key={card.id} size="small" label={cardPreview(card)} />
+        {selectedCards.length >= 3 && (
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Typography variant="caption" color="text.secondary">
+              Limit:
+            </Typography>
+            {LIMIT_OPTIONS.map((n) => (
+              <Chip
+                key={n}
+                size="small"
+                label={n}
+                clickable
+                onClick={() => void onAddLimit(n)}
+              />
             ))}
-            {selectedCards.length > 12 && (
-              <Chip size="small" variant="outlined" label={`+${selectedCards.length - 12} more`} />
-            )}
           </Stack>
-        </Box>
+        )}
+
+        {selectedCards.length > 0 && (
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Selected: {selectedCards.length}
+            </Typography>
+            <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+              {visibleChips.map((card) => (
+                <Chip
+                  key={card.id}
+                  size="small"
+                  variant="outlined"
+                  label={cardChipLabel(card)}
+                  title={`#${card.id} · count ${card.count}`}
+                />
+              ))}
+              {hasMoreChips && <Chip size="small" label="..." />}
+            </Stack>
+          </Box>
+        )}
 
         {error && (
           <Typography color="error" variant="body2">
@@ -194,8 +285,8 @@ export function CardsSelector({
         <Button
           variant="contained"
           startIcon={<PlayArrowIcon />}
-          disabled={loading || hasErrors || selectedCards.length === 0}
-          onClick={start}
+          disabled={loading || cards.length === 0}
+          onClick={() => void start()}
         >
           Start quiz
         </Button>

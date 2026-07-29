@@ -18,7 +18,7 @@ import TableSortLabel from '@mui/material/TableSortLabel'
 import Typography from '@mui/material/Typography'
 import type { Card } from '../types/models'
 
-type SortKey = 'id' | 'count' | 'practiceCount' | 'usageType'
+type SortKey = 'id' | 'count' | 'usageType'
 
 function preview(card: Card): string {
   const first = card.question[0]
@@ -111,7 +111,6 @@ export function CardsTable({ cards, onOpen, onCreate, onDelete }: CardsTableProp
               {([
                 ['id', 'ID'],
                 ['count', 'Count'],
-                ['practiceCount', 'Practice'],
                 ['usageType', 'Usage'],
               ] as const).map(([key, label]) => (
                 <TableCell key={key}>
@@ -146,7 +145,6 @@ export function CardsTable({ cards, onOpen, onCreate, onDelete }: CardsTableProp
                 </TableCell>
                 <TableCell>{card.id}</TableCell>
                 <TableCell>{card.count}</TableCell>
-                <TableCell>{card.practiceCount}</TableCell>
                 <TableCell>{card.usageType}</TableCell>
                 <TableCell>
                   {card.shared ? <Chip size="small" color="info" label="shared" /> : '—'}
@@ -165,7 +163,7 @@ export function CardsTable({ cards, onOpen, onCreate, onDelete }: CardsTableProp
             ))}
             {pageRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8}>
+                <TableCell colSpan={7}>
                   <Typography color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
                     No cards yet
                   </Typography>

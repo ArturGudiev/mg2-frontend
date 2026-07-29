@@ -43,7 +43,6 @@ export function CardView({ card, showAnswer = true }: CardViewProps) {
 
       <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
         <Typography variant="caption">count: {card.count}</Typography>
-        <Typography variant="caption">practice: {card.practiceCount}</Typography>
         <Typography variant="caption">usage: {card.usageType}</Typography>
       </Box>
     </Paper>

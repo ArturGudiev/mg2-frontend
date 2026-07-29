@@ -88,13 +88,12 @@ export interface Card {
   needed: number
   count: number
   reverseCount: number
-  practiceCount: number
   usageType: UsageType
   shared: boolean
   userId: number
 }
 
-export type QuizField = 'count' | 'practiceCount'
+export type QuizField = 'count'
 
 export interface QuizSession {
   cards: Card[]

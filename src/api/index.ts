@@ -35,6 +35,8 @@ export const authApi = {
 export const memoryNodesApi = {
   list: () => apiFetch<MemoryNode[]>('/memory-nodes'),
 
+  listRoots: () => apiFetch<MemoryNode[]>('/memory-nodes/roots'),
+
   get: (id: number) => apiFetch<MemoryNode>(`/memory-node/${id}`),
 
   parentsPath: (id: number) =>
@@ -111,7 +113,7 @@ export const cardsApi = {
     }),
 
   updateField: (
-    cards: Array<{ id: number; count?: number; practiceCount?: number }>,
+    cards: Array<{ id: number; count?: number }>,
     field: QuizField,
   ) =>
     apiFetch<void>('/update-cards-field', {
@@ -130,12 +132,6 @@ export const cardsApi = {
 
   decreaseCount: (id: number) =>
     apiFetch<Card>(`/decrease-card-count/${id}`, { method: 'PUT' }),
-
-  increasePracticeCount: (id: number) =>
-    apiFetch<Card>(`/increase-card-practice-count/${id}`, { method: 'PUT' }),
-
-  decreasePracticeCount: (id: number) =>
-    apiFetch<Card>(`/decrease-card-practice-count/${id}`, { method: 'PUT' }),
 }
 
 export const cardItemsApi = {

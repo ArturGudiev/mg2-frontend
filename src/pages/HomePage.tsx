@@ -31,7 +31,7 @@ export function HomePage() {
     setLoading(true)
     setError('')
     try {
-      const data = await memoryNodesApi.list()
+      const data = await memoryNodesApi.listRoots()
       setNodes(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load nodes')
@@ -57,7 +57,7 @@ export function HomePage() {
       <Box>
         <Typography variant="h4">Memory nodes</Typography>
         <Typography color="text.secondary">
-          Pick a node to browse children and cards.
+          Root nodes — open one to browse children and cards.
         </Typography>
       </Box>
 
@@ -74,7 +74,7 @@ export function HomePage() {
             pb: 0.5,
           }}
         >
-          <Typography variant="h6">Nodes</Typography>
+          <Typography variant="h6">Root nodes</Typography>
           <IconButton
             color="primary"
             aria-label="add memory node"
