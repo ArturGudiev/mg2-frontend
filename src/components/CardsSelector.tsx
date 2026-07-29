@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ClearIcon from '@mui/icons-material/Clear'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
@@ -21,7 +21,10 @@ import type { Card, CardsGroup, CardsPriority } from '../types/models'
 
 const CHIP_LABEL_MAX = 30
 const MAX_VISIBLE_CHIPS = 30
-const LIMIT_OPTIONS = [25, 13, 12, 8, 6, 5, 3]
+const UNTIL_OFFSETS = [2, 3, 5]
+const LIMIT_OPTIONS = [3, 5, 12, 13, 25]
+const DEBOUNCE_MS = 300
+const THROTTLE_MS = 500
 
 interface CardsSelectorProps {
   memoryNodeId: number
@@ -30,25 +33,10 @@ interface CardsSelectorProps {
   selectedGroup: CardsGroup | null
 }
 
-function parseUntil(query: string): number {
-  const match = query.match(/-until\s+(\d+)/i)
-  return match ? Number(match[1]) : 1
-}
-
-function upsertCountFilter(query: string, value: number): string {
-  const clause = `count = ${value}`
-  const replaced = query.replace(/\bcount\s*(?:===|==|=|<=|>=|<|>)\s*-?\d+/i, clause)
-  if (replaced !== query) return replaced.trim()
-  const trimmed = query.trim()
-  return trimmed ? `${trimmed} ${clause}` : clause
-}
-
-function upsertLimit(query: string, limit: number): string {
-  const clause = `--limit ${limit}`
-  const replaced = query.replace(/--?limit\s+\d+/i, clause)
-  if (replaced !== query) return replaced.trim()
-  const trimmed = query.trim()
-  return trimmed ? `${trimmed} ${clause}` : clause
+interface SelectionInput {
+  countText: string
+  limitText: string
+  cards: Card[]
 }
 
 function cardChipLabel(card: Card): string {
@@ -56,6 +44,62 @@ function cardChipLabel(card: Card): string {
   const raw =
     first?.text || first?.code || first?.formula || first?.imagePath || `#${card.id}`
   return raw.length > CHIP_LABEL_MAX ? `${raw.slice(0, CHIP_LABEL_MAX)}...` : raw
+}
+
+function parseNonNegInt(text: string): number | null {
+  const trimmed = text.trim()
+  if (trimmed === '') return null
+  const n = Number(trimmed)
+  if (!Number.isInteger(n) || n < 0) return null
+  return n
+}
+
+/** Debounce quiet updates; also throttle so rapid changes still refresh at least every `throttleMs`. */
+function useDebouncedThrottledValue<T>(value: T, debounceMs: number, throttleMs: number): T {
+  const [output, setOutput] = useState(value)
+  const lastEmitRef = useRef(0)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const valueRef = useRef(value)
+  valueRef.current = value
+
+  useEffect(() => {
+    const emit = () => {
+      lastEmitRef.current = Date.now()
+      setOutput(valueRef.current)
+      timerRef.current = null
+    }
+
+    const elapsed = Date.now() - lastEmitRef.current
+    if (elapsed >= throttleMs) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+        timerRef.current = null
+      }
+      emit()
+      return
+    }
+
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(emit, debounceMs)
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [value, debounceMs, throttleMs])
+
+  return output
+}
+
+function selectCards({ countText, limitText, cards }: SelectionInput): Card[] {
+  const countFilter = parseNonNegInt(countText)
+  if (countText.trim() !== '' && countFilter == null) return []
+  const limitFilter = parseNonNegInt(limitText)
+  if (limitText.trim() !== '' && (limitFilter == null || limitFilter === 0)) return []
+  let list = countFilter == null ? cards : cards.filter((c) => c.count === countFilter)
+  if (limitFilter != null && limitFilter < list.length) {
+    list = list.slice(0, limitFilter)
+  }
+  return list
 }
 
 export function CardsSelector({
@@ -66,10 +110,46 @@ export function CardsSelector({
 }: CardsSelectorProps) {
   const navigate = useNavigate()
   const { startQuiz } = useQuiz()
-  const [query, setQuery] = useState('quiz -until 1')
-  const [selectedCards, setSelectedCards] = useState<Card[]>([])
+  const [untilText, setUntilText] = useState('1')
+  const [countText, setCountText] = useState('')
+  const [limitText, setLimitText] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const selectionInput = useMemo<SelectionInput>(
+    () => ({ countText, limitText, cards }),
+    [countText, limitText, cards],
+  )
+  const debouncedSelection = useDebouncedThrottledValue(
+    selectionInput,
+    DEBOUNCE_MS,
+    THROTTLE_MS,
+  )
+
+  const untilTrimmed = untilText.trim()
+  const untilNum = Number(untilTrimmed)
+  const untilError =
+    untilTrimmed === ''
+      ? 'Required'
+      : !Number.isInteger(untilNum) || untilNum < 0
+        ? 'Whole number ≥ 0'
+        : ''
+
+  const countTrimmed = countText.trim()
+  const countNum = Number(countTrimmed)
+  const countError =
+    countTrimmed !== '' && (!Number.isInteger(countNum) || countNum < 0)
+      ? 'Whole number ≥ 0'
+      : ''
+
+  const limitTrimmed = limitText.trim()
+  const limitNum = Number(limitTrimmed)
+  const limitError =
+    limitTrimmed !== '' && (!Number.isInteger(limitNum) || limitNum <= 0)
+      ? 'Whole number ≥ 1'
+      : ''
+
+  const hasErrors = Boolean(untilError || countError || limitError)
 
   const stats = useMemo(() => {
     const buckets = new Map<number, number>()
@@ -79,70 +159,57 @@ export function CardsSelector({
     return [...buckets.entries()].sort((a, b) => a[0] - b[0])
   }, [cards])
 
+  const selectedCards = useMemo(
+    () => selectCards(debouncedSelection),
+    [debouncedSelection],
+  )
+
   const visibleChips = selectedCards.slice(0, MAX_VISIBLE_CHIPS)
   const hasMoreChips = selectedCards.length > MAX_VISIBLE_CHIPS
 
   useEffect(() => {
-    setSelectedCards([])
+    setCountText('')
+    setLimitText('')
     setError('')
   }, [selectedPriority, selectedGroup, memoryNodeId])
 
-  const selectByQuery = useCallback(
-    async (nextQuery: string) => {
-      setLoading(true)
-      setError('')
-      try {
-        const result = await cardsApi.byQuery({
-          id: memoryNodeId,
-          query: nextQuery,
-          priority: selectedPriority ?? undefined,
-          group: selectedGroup ?? undefined,
-        })
-        setSelectedCards(result)
-        if (result.length === 0) {
-          setError('No cards matched the query')
-        }
-      } catch (err) {
-        setSelectedCards([])
-        setError(err instanceof Error ? err.message : 'Failed to select cards')
-      } finally {
-        setLoading(false)
-      }
-    },
-    [memoryNodeId, selectedGroup, selectedPriority],
-  )
+  const query = useMemo(() => {
+    if (hasErrors) return ''
+    const parts = [`quiz -until ${untilNum}`]
+    if (countTrimmed !== '') parts.push(`count = ${countNum}`)
+    if (limitTrimmed !== '') parts.push(`--limit ${limitNum}`)
+    return parts.join(' ')
+  }, [hasErrors, untilNum, countTrimmed, countNum, limitTrimmed, limitNum])
 
-  const onCountRowClick = async (value: number) => {
-    const nextQuery = upsertCountFilter(query, value)
-    setQuery(nextQuery)
-    await selectByQuery(nextQuery)
+  const onCountRowClick = (value: number, quantity: number) => {
+    setCountText(String(value))
+    setLimitText(String(Math.min(quantity, 25)))
+    setUntilText(String(value + 1))
+    setError('')
   }
 
-  const onAddLimit = async (limit: number) => {
-    const nextQuery = upsertLimit(query, limit)
-    setQuery(nextQuery)
-    await selectByQuery(nextQuery)
+  const onUntilOffsetClick = (offset: number) => {
+    const base = parseNonNegInt(countText) ?? 0
+    setUntilText(String(base + offset))
+    setError('')
   }
 
   const clearSelection = () => {
-    setSelectedCards([])
+    setCountText('')
+    setLimitText('')
     setError('')
-    setQuery((q) =>
-      q
-        .replace(/\bcount\s*(?:===|==|=|<=|>=|<|>)\s*-?\d+/gi, '')
-        .replace(/--?limit\s+\d+/gi, '')
-        .replace(/\s+/g, ' ')
-        .trim() || 'quiz -until 1',
-    )
   }
 
   const start = async () => {
+    if (hasErrors || !query) return
     setLoading(true)
     setError('')
     try {
+      // Use the latest input values for start (not debounced), so Enter/click feels immediate.
+      const latest = selectCards({ countText, limitText, cards })
       const result =
-        selectedCards.length > 0
-          ? selectedCards
+        latest.length > 0
+          ? latest
           : await cardsApi.byQuery({
               id: memoryNodeId,
               query,
@@ -153,12 +220,10 @@ export function CardsSelector({
         setError('No cards matched the query')
         return
       }
-      setSelectedCards(result)
-      const until = parseUntil(query)
       startQuiz({
         cards: result,
         fieldToUpdate: 'count',
-        until,
+        until: untilNum,
         lastNodeId: memoryNodeId,
         query,
       })
@@ -193,8 +258,9 @@ export function CardsSelector({
                   <TableRow
                     key={value}
                     hover
+                    selected={countTrimmed !== '' && countNum === value}
                     sx={{ cursor: 'pointer' }}
-                    onClick={() => void onCountRowClick(value)}
+                    onClick={() => onCountRowClick(value, quantity)}
                   >
                     <TableCell>
                       <Typography color="primary" variant="body2">
@@ -219,48 +285,84 @@ export function CardsSelector({
 
         <Stack direction="row" spacing={1} alignItems="flex-start">
           <TextField
-            label="Query"
+            label="Count"
             size="small"
-            fullWidth
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                void selectByQuery(query)
-              }
-            }}
-            helperText="Enter to select · count = 0 · --limit 25"
+            type="number"
+            value={countText}
+            onChange={(e) => setCountText(e.target.value)}
+            error={Boolean(countError)}
+            helperText={countError || 'Filter by count'}
+            sx={{ width: 120 }}
+            slotProps={{ htmlInput: { min: 0, step: 1 } }}
           />
-          {selectedCards.length > 0 && (
+          {(countText !== '' || limitText !== '') && (
             <IconButton aria-label="clear selection" onClick={clearSelection} sx={{ mt: 0.5 }}>
               <ClearIcon />
             </IconButton>
           )}
         </Stack>
 
-        {selectedCards.length >= 3 && (
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-            <Typography variant="caption" color="text.secondary">
-              Limit:
-            </Typography>
-            {LIMIT_OPTIONS.map((n) => (
-              <Chip
-                key={n}
-                size="small"
-                label={n}
-                clickable
-                onClick={() => void onAddLimit(n)}
-              />
-            ))}
-          </Stack>
-        )}
+        <Stack direction="row" spacing={1} alignItems="flex-start" flexWrap="wrap" useFlexGap>
+          <TextField
+            label="Limit"
+            size="small"
+            type="number"
+            value={limitText}
+            onChange={(e) => setLimitText(e.target.value)}
+            error={Boolean(limitError)}
+            helperText={limitError || 'Max cards'}
+            sx={{ width: 120 }}
+            slotProps={{ htmlInput: { min: 1, step: 1 } }}
+          />
+          {LIMIT_OPTIONS.map((n) => (
+            <Chip
+              key={n}
+              size="small"
+              label={n}
+              clickable
+              color={limitTrimmed !== '' && limitNum === n ? 'primary' : 'default'}
+              onClick={() =>
+                setLimitText((prev) => (prev.trim() === String(n) ? '' : String(n)))
+              }
+              sx={{ mt: 0.75 }}
+            />
+          ))}
+        </Stack>
 
-        {selectedCards.length > 0 && (
-          <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Selected: {selectedCards.length}
-            </Typography>
+        <Stack direction="row" spacing={1} alignItems="flex-start" flexWrap="wrap" useFlexGap>
+          <TextField
+            label="Until"
+            size="small"
+            type="number"
+            value={untilText}
+            onChange={(e) => setUntilText(e.target.value)}
+            error={Boolean(untilError)}
+            helperText={untilError || 'Repeat threshold'}
+            sx={{ width: 120 }}
+            slotProps={{ htmlInput: { min: 0, step: 1 } }}
+          />
+          {UNTIL_OFFSETS.map((offset) => {
+            const base = parseNonNegInt(countText) ?? 0
+            const nextUntil = base + offset
+            return (
+              <Chip
+                key={offset}
+                size="small"
+                label={`+${offset}`}
+                clickable
+                color={untilTrimmed !== '' && untilNum === nextUntil ? 'primary' : 'default'}
+                onClick={() => onUntilOffsetClick(offset)}
+                sx={{ mt: 0.75 }}
+              />
+            )
+          })}
+        </Stack>
+
+        <Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Selected: {selectedCards.length}
+          </Typography>
+          {selectedCards.length > 0 && (
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
               {visibleChips.map((card) => (
                 <Chip
@@ -273,8 +375,8 @@ export function CardsSelector({
               ))}
               {hasMoreChips && <Chip size="small" label="..." />}
             </Stack>
-          </Box>
-        )}
+          )}
+        </Box>
 
         {error && (
           <Typography color="error" variant="body2">
@@ -285,7 +387,9 @@ export function CardsSelector({
         <Button
           variant="contained"
           startIcon={<PlayArrowIcon />}
-          disabled={loading || cards.length === 0}
+          disabled={
+            loading || hasErrors || selectCards({ countText, limitText, cards }).length === 0
+          }
           onClick={() => void start()}
         >
           Start quiz
