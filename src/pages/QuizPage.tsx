@@ -174,12 +174,24 @@ export function QuizPage() {
   }
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 900, mx: 'auto' }}>
+    <Stack
+      spacing={2}
+      sx={{
+        maxWidth: 900,
+        mx: 'auto',
+        // Room for the fixed action bar so content can scroll clear of it
+        pb: 14,
+      }}
+    >
       <Typography variant="h4">Викторина</Typography>
       <Typography color="text.secondary">
         Цель: {session.until} · осталось карточек: {unfinishedCount}
       </Typography>
-      <Typography variant="caption" color="text.secondary">
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: { xs: 'none', sm: 'block' } }}
+      >
         Клавиши: 1 показать/успех · 2 провал · 5 успех
       </Typography>
 
@@ -195,26 +207,57 @@ export function QuizPage() {
 
           <CardView card={current} showAnswer={showAnswer} />
 
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {!showAnswer && (
-              <Button variant="contained" onClick={() => setShowAnswer(true)}>
-                {`Показать ответ${isMobile ? '' : ' (1)'}`}
-              </Button>
-            )}
-            <Button variant="contained" color="success" onClick={markSuccess}>
-            {`Знаю${isMobile ? '' : showAnswer ? ' (1 / 5)' : ' (5)'}`}
-            </Button>
-            <Button variant="outlined" color="error" onClick={markFail}>
-              {`Не знаю${isMobile ? '' : ' (2)'}`}
-            </Button> 
-            <Button
-              onClick={() => {
-                clearQuiz()
-                navigate(session.lastNodeId ? `/memory-node/${session.lastNodeId}` : '/')
+          <Box
+            sx={{
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: (t) => t.zIndex.appBar,
+              p: 1.5,
+              pb: 'max(12px, env(safe-area-inset-bottom))',
+              bgcolor: 'background.paper',
+              borderTop: 1,
+              borderColor: 'divider',
+              boxShadow: 3,
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 1,
+                flexWrap: 'wrap',
+                maxWidth: 900,
+                mx: 'auto',
               }}
             >
-              Прервать
-            </Button>
+              <Button
+                variant="contained"
+                onClick={() => setShowAnswer(true)}
+                disabled={showAnswer}
+              >
+                {`Показать ответ${isMobile ? '' : ' (1)'}`}
+              </Button>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={markSuccess}
+                sx={isMobile ? undefined : { minWidth: 132 }}
+              >
+                {`Знаю${isMobile ? '' : showAnswer ? ' (1 / 5)' : ' (5)'}`}
+              </Button>
+              <Button variant="outlined" color="error" onClick={markFail}>
+                {`Не знаю${isMobile ? '' : ' (2)'}`}
+              </Button>
+              <Button
+                onClick={() => {
+                  clearQuiz()
+                  navigate(session.lastNodeId ? `/memory-node/${session.lastNodeId}` : '/')
+                }}
+              >
+                Прервать
+              </Button>
+            </Box>
           </Box>
         </>
       )}
