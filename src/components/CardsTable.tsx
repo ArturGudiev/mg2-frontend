@@ -193,8 +193,10 @@ export function CardsTable({
                   }}
                 />
               </TableCell>
-              <TableCell width={56}>№</TableCell>
-              <TableCell>Превью</TableCell>
+              <TableCell width={56} sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                №
+              </TableCell>
+              <TableCell>Карточка</TableCell>
               <TableCell>
                 <TableSortLabel
                   active={orderBy === 'count'}
@@ -204,13 +206,22 @@ export function CardsTable({
                   Count
                 </TableSortLabel>
               </TableCell>
-              <TableCell />
+              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }} />
             </TableRow>
           </TableHead>
           <TableBody>
             {pageRows.map((card, index) => (
-              <TableRow key={card.id} hover selected={selected.includes(card.id)}>
-                <TableCell padding="checkbox">
+              <TableRow
+                key={card.id}
+                hover
+                selected={selected.includes(card.id)}
+                onClick={() => onOpen(card)}
+                sx={{ cursor: 'pointer' }}
+              >
+                <TableCell
+                  padding="checkbox"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <Checkbox
                     checked={selected.includes(card.id)}
                     onChange={(e) => {
@@ -222,21 +233,27 @@ export function CardsTable({
                     }}
                   />
                 </TableCell>
-                <TableCell>{page * rowsPerPage + index + 1}</TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                  {page * rowsPerPage + index + 1}
+                </TableCell>
                 <TableCell sx={{ maxWidth: 280 }}>
                   <CardHoverPreview card={card}>
                     <Typography
                       noWrap
                       variant="body2"
                       component="span"
-                      sx={{ cursor: 'default', display: 'inline-block', maxWidth: '100%' }}
+                      sx={{ cursor: 'pointer', display: 'inline-block', maxWidth: '100%' }}
                     >
                       {preview(card)}
                     </Typography>
                   </CardHoverPreview>
                 </TableCell>
                 <TableCell>{card.count}</TableCell>
-                <TableCell align="right">
+                <TableCell
+                  align="right"
+                  sx={{ display: { xs: 'none', sm: 'table-cell' } }}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <IconButton size="small" onClick={() => onOpen(card)} aria-label="открыть карточку">
                     →
                   </IconButton>

@@ -234,37 +234,54 @@ export function MemoryNodePage() {
           display: 'grid',
           gap: 2,
           gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' },
+          gridTemplateAreas: {
+            xs: `
+              "nodes"
+              "practice"
+              "cards"
+            `,
+            lg: `
+              "nodes practice"
+              "cards practice"
+            `,
+          },
           alignItems: 'start',
         }}
       >
-        <Stack spacing={2}>
-          {(isAdmin || children.length > 0) && <NodeBrowser
-            children={children}
-            isAdmin={isAdmin}
-            onOpenChild={(child) => navigate(`/memory-node/${child.id}`)}
-            onAddChild={() => setCreateChildOpen(true)}
-          />}
-
-          {(isAdmin || cards.length > 0) && ( <CardsTable
-            cards={filteredCards}
-            isAdmin={isAdmin}
-            textFilter={cardTextFilter}
-            onTextFilterChange={setCardTextFilter}
-            onOpen={(card) => navigate(`/card/${card.id}`)}
-            onCreate={() => setCreateCardOpen(true)}
-            onDelete={(ids) => void deleteCards(ids)}
-          />)}
-        </Stack>
+        {(isAdmin || children.length > 0) && (
+          <Box sx={{ gridArea: 'nodes' }}>
+            <NodeBrowser
+              children={children}
+              isAdmin={isAdmin}
+              onOpenChild={(child) => navigate(`/memory-node/${child.id}`)}
+              onAddChild={() => setCreateChildOpen(true)}
+            />
+          </Box>
+        )}
 
         {cards.length > 0 && (
-          <Stack spacing={2}>
+          <Box sx={{ gridArea: 'practice' }}>
             <CardsSelector
               memoryNodeId={node.id}
               cards={filteredCards}
               selectedPriority={priority}
               selectedGroup={group}
             />
-          </Stack>
+          </Box>
+        )}
+
+        {(isAdmin || cards.length > 0) && (
+          <Box sx={{ gridArea: 'cards' }}>
+            <CardsTable
+              cards={filteredCards}
+              isAdmin={isAdmin}
+              textFilter={cardTextFilter}
+              onTextFilterChange={setCardTextFilter}
+              onOpen={(card) => navigate(`/card/${card.id}`)}
+              onCreate={() => setCreateCardOpen(true)}
+              onDelete={(ids) => void deleteCards(ids)}
+            />
+          </Box>
         )}
       </Box>
 
