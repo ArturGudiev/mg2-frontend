@@ -5,7 +5,6 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
-import IconButton from '@mui/material/IconButton'
 import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Table from '@mui/material/Table'
@@ -18,6 +17,7 @@ import Typography from '@mui/material/Typography'
 import { cardsApi } from '../api'
 import { useQuiz } from '../store/QuizContext'
 import type { Card, CardsGroup, CardsPriority } from '../types/models'
+import { CardHoverPreview } from './CardHoverPreview'
 
 const CHIP_LABEL_MAX = 30
 const MAX_VISIBLE_CHIPS = 30
@@ -115,6 +115,7 @@ export function CardsSelector({
   const [limitText, setLimitText] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [chipsExpanded, setChipsExpanded] = useState(false)
 
   const selectionInput = useMemo<SelectionInput>(
     () => ({ countText, limitText, cards }),
@@ -130,23 +131,23 @@ export function CardsSelector({
   const untilNum = Number(untilTrimmed)
   const untilError =
     untilTrimmed === ''
-      ? 'Required'
+      ? 'Обязательно'
       : !Number.isInteger(untilNum) || untilNum < 0
-        ? 'Whole number ≥ 0'
+        ? 'Целое число ≥ 0'
         : ''
 
   const countTrimmed = countText.trim()
   const countNum = Number(countTrimmed)
   const countError =
     countTrimmed !== '' && (!Number.isInteger(countNum) || countNum < 0)
-      ? 'Whole number ≥ 0'
+      ? 'Целое число ≥ 0'
       : ''
 
   const limitTrimmed = limitText.trim()
   const limitNum = Number(limitTrimmed)
   const limitError =
     limitTrimmed !== '' && (!Number.isInteger(limitNum) || limitNum <= 0)
-      ? 'Whole number ≥ 1'
+      ? 'Целое число ≥ 1'
       : ''
 
   const hasErrors = Boolean(untilError || countError || limitError)
@@ -171,6 +172,7 @@ export function CardsSelector({
     setCountText('')
     setLimitText('')
     setError('')
+    setChipsExpanded(false)
   }, [selectedPriority, selectedGroup, memoryNodeId])
 
   const query = useMemo(() => {
@@ -183,8 +185,8 @@ export function CardsSelector({
 
   const onCountRowClick = (value: number, quantity: number) => {
     setCountText(String(value))
-    setLimitText(String(Math.min(quantity, 25)))
-    setUntilText(String(value + 1))
+    setUntilText(String(value + 2))
+    setLimitText(String(quantity))
     setError('')
   }
 
@@ -197,8 +199,13 @@ export function CardsSelector({
   const clearSelection = () => {
     setCountText('')
     setLimitText('')
+    setUntilText('1')
     setError('')
+    setChipsExpanded(false)
   }
+
+  const hasSelection =
+    countText !== '' || limitText !== '' || untilText !== '1'
 
   const start = async () => {
     if (hasErrors || !query) return
@@ -217,7 +224,7 @@ export function CardsSelector({
               group: selectedGroup ?? undefined,
             })
       if (result.length === 0) {
-        setError('No cards matched the query')
+        setError('Нет карточек по запросу')
         return
       }
       startQuiz({
@@ -229,7 +236,7 @@ export function CardsSelector({
       })
       navigate('/quiz')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start quiz')
+      setError(err instanceof Error ? err.message : 'Не удалось начать практику')
     } finally {
       setLoading(false)
     }
@@ -238,19 +245,22 @@ export function CardsSelector({
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Typography variant="h6" gutterBottom>
-        Quiz
+        Практика
       </Typography>
       <Stack spacing={1.5}>
         <Box>
           <Typography variant="subtitle2" gutterBottom>
-            count ({cards.length})
+            Уровни ({cards.length})
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Выберите уровень, с которого учить
           </Typography>
           {stats.length > 0 ? (
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>count</TableCell>
-                  <TableCell align="right">Quantity</TableCell>
+                  <TableCell>Уровень</TableCell>
+                  <TableCell align="right">Карточек</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -283,35 +293,30 @@ export function CardsSelector({
           )}
         </Box>
 
-        <Stack direction="row" spacing={1} alignItems="flex-start">
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
           <TextField
-            label="Count"
+            label="Уровень"
             size="small"
             type="number"
             value={countText}
             onChange={(e) => setCountText(e.target.value)}
             error={Boolean(countError)}
-            helperText={countError || 'Filter by count'}
-            sx={{ width: 120 }}
+            helperText={countError || 'Фильтр по уровню'}
+            sx={{ width: 180 }}
             slotProps={{ htmlInput: { min: 0, step: 1 } }}
           />
-          {(countText !== '' || limitText !== '') && (
-            <IconButton aria-label="clear selection" onClick={clearSelection} sx={{ mt: 0.5 }}>
-              <ClearIcon />
-            </IconButton>
-          )}
         </Stack>
 
-        <Stack direction="row" spacing={1} alignItems="flex-start" flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start', flexWrap: 'wrap' }} useFlexGap>
           <TextField
-            label="Limit"
+            label="Кол-во карточек"
             size="small"
             type="number"
             value={limitText}
             onChange={(e) => setLimitText(e.target.value)}
             error={Boolean(limitError)}
-            helperText={limitError || 'Max cards'}
-            sx={{ width: 120 }}
+            helperText={limitError || 'Ограничение сессии'}
+            sx={{ width: 180 }}
             slotProps={{ htmlInput: { min: 1, step: 1 } }}
           />
           {LIMIT_OPTIONS.map((n) => (
@@ -329,16 +334,16 @@ export function CardsSelector({
           ))}
         </Stack>
 
-        <Stack direction="row" spacing={1} alignItems="flex-start" flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start', flexWrap: 'wrap' }} useFlexGap>
           <TextField
-            label="Until"
+            label="Учить до"
             size="small"
             type="number"
             value={untilText}
             onChange={(e) => setUntilText(e.target.value)}
             error={Boolean(untilError)}
-            helperText={untilError || 'Repeat threshold'}
-            sx={{ width: 120 }}
+            helperText={untilError || 'Целевой уровень'}
+            sx={{ width: 180 }}
             slotProps={{ htmlInput: { min: 0, step: 1 } }}
           />
           {UNTIL_OFFSETS.map((offset) => {
@@ -359,19 +364,33 @@ export function CardsSelector({
         </Stack>
 
         <Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            Selected: {selectedCards.length}
+          <Typography
+            variant="body2"
+            color={selectedCards.length > 0 ? 'primary' : 'text.secondary'}
+            sx={{
+              mb: chipsExpanded && selectedCards.length > 0 ? 1 : 0,
+              cursor: selectedCards.length > 0 ? 'pointer' : 'default',
+              userSelect: 'none',
+              '&:hover': selectedCards.length > 0 ? { textDecoration: 'underline' } : undefined,
+            }}
+            onClick={() => {
+              if (selectedCards.length > 0) setChipsExpanded((v) => !v)
+            }}
+            title={selectedCards.length > 0 ? 'Показать или скрыть список' : undefined}
+          >
+            Выбрано: {selectedCards.length}
+            {selectedCards.length > 0 && (chipsExpanded ? ' ▴' : ' ▾')}
           </Typography>
-          {selectedCards.length > 0 && (
-            <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+          {chipsExpanded && selectedCards.length > 0 && (
+            <Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: 'wrap' }}>
               {visibleChips.map((card) => (
-                <Chip
-                  key={card.id}
-                  size="small"
-                  variant="outlined"
-                  label={cardChipLabel(card)}
-                  title={`#${card.id} · count ${card.count}`}
-                />
+                <CardHoverPreview key={card.id} card={card}>
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={cardChipLabel(card)}
+                  />
+                </CardHoverPreview>
               ))}
               {hasMoreChips && <Chip size="small" label="..." />}
             </Stack>
@@ -384,16 +403,26 @@ export function CardsSelector({
           </Typography>
         )}
 
-        <Button
-          variant="contained"
-          startIcon={<PlayArrowIcon />}
-          disabled={
-            loading || hasErrors || selectCards({ countText, limitText, cards }).length === 0
-          }
-          onClick={() => void start()}
-        >
-          Start quiz
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="outlined"
+            startIcon={<ClearIcon />}
+            disabled={!hasSelection}
+            onClick={clearSelection}
+          >
+            Очистить
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<PlayArrowIcon />}
+            disabled={
+              loading || hasErrors || selectCards({ countText, limitText, cards }).length === 0
+            }
+            onClick={() => void start()}
+          >
+            Начать практику
+          </Button>
+        </Stack>
       </Stack>
     </Paper>
   )

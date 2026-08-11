@@ -37,7 +37,7 @@ export function LoginPage() {
       }
       navigate('/')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed')
+      setError(err instanceof Error ? err.message : 'Ошибка аутентификации')
     } finally {
       setSubmitting(false)
     }
@@ -59,33 +59,33 @@ export function LoginPage() {
           Memory Guard
         </Typography>
         <Typography color="text.secondary" sx={{ mb: 2 }}>
-          Sign in to manage memory nodes and flashcards.
+          Войдите или зарегистрируйтесь, чтобы открыть маршруты, разделы и карточки.
         </Typography>
 
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
-          <Tab label="Login" />
-          <Tab label="Register" />
+          <Tab label="Вход" />
+          <Tab label="Регистрация" />
         </Tabs>
 
         <Box component="form" onSubmit={submit}>
           <Stack spacing={2}>
             {tab === 1 && (
               <TextField
-                label="Name"
+                label="Имя"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             )}
             <TextField
-              label="Email"
+              label="Эл. почта"
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
             <TextField
-              label="Password"
+              label="Пароль"
               type="password"
               required
               value={password}
@@ -93,7 +93,7 @@ export function LoginPage() {
             />
             {error && <Alert severity="error">{error}</Alert>}
             <Button type="submit" variant="contained" size="large" disabled={submitting}>
-              {tab === 0 ? 'Login' : 'Create account'}
+              {tab === 0 ? 'Войти' : 'Создать аккаунт'}
             </Button>
           </Stack>
         </Box>

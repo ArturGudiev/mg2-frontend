@@ -12,6 +12,7 @@ import Typography from '@mui/material/Typography'
 
 export interface NewMemoryNodeValues {
   name: string
+  description: string
   aliases: string[]
   shared: boolean
 }
@@ -28,7 +29,7 @@ interface MemoryNodeDialogProps {
 
 export function MemoryNodeDialog({
   open,
-  title = 'New memory node',
+  title = 'Новый раздел памяти',
   submitting,
   defaultShared = false,
   allowShared = false,
@@ -36,6 +37,7 @@ export function MemoryNodeDialog({
   onSubmit,
 }: MemoryNodeDialogProps) {
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [aliases, setAliases] = useState('')
   const [shared, setShared] = useState(false)
   const [error, setError] = useState('')
@@ -43,6 +45,7 @@ export function MemoryNodeDialog({
   useEffect(() => {
     if (!open) return
     setName('')
+    setDescription('')
     setAliases('')
     setShared(allowShared ? defaultShared : false)
     setError('')
@@ -52,6 +55,7 @@ export function MemoryNodeDialog({
     setError('')
     await onSubmit({
       name: name.trim(),
+      description: description.trim(),
       aliases: aliases
         .split(',')
         .map((a) => a.trim())
@@ -68,7 +72,7 @@ export function MemoryNodeDialog({
         <Stack spacing={2} sx={{ pt: 1 }}>
           <TextField
             autoFocus
-            label="Name"
+            label="Имя"
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -76,13 +80,20 @@ export function MemoryNodeDialog({
               if (e.key === 'Enter' && name.trim()) {
                 e.preventDefault()
                 void submit().catch((err) => {
-                  setError(err instanceof Error ? err.message : 'Failed to create node')
+                  setError(err instanceof Error ? err.message : 'Не удалось создать раздел')
                 })
               }
             }}
           />
           <TextField
-            label="Aliases (comma-separated)"
+            label="Описание"
+            multiline
+            minRows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+          <TextField
+            label="Псевдонимы (через запятую)"
             value={aliases}
             onChange={(e) => setAliases(e.target.value)}
           />
@@ -91,7 +102,7 @@ export function MemoryNodeDialog({
               control={
                 <Checkbox checked={shared} onChange={(e) => setShared(e.target.checked)} />
               }
-              label="Shared — visible to all users"
+              label="Общий — доступ только по приглашению"
             />
           )}
           {error && (
@@ -102,17 +113,17 @@ export function MemoryNodeDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>Отмена</Button>
         <Button
           variant="contained"
           disabled={!name.trim() || submitting}
           onClick={() => {
             void submit().catch((err) => {
-              setError(err instanceof Error ? err.message : 'Failed to create node')
+              setError(err instanceof Error ? err.message : 'Не удалось создать раздел')
             })
           }}
         >
-          Create
+          Создать
         </Button>
       </DialogActions>
     </Dialog>

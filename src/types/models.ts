@@ -5,6 +5,7 @@ export type CardItemType =
   | 'FORMULA'
   | 'IMAGE'
   | 'WORD_WITH_STRESS'
+  | 'MARKDOWN'
 
 export type UsageType = 'active' | 'passive' | 'transitional' | 'common'
 
@@ -42,6 +43,7 @@ export interface MemoryNodePathItem {
 export interface MemoryNode {
   id: number
   name: string
+  description: string
   children: number[]
   parents: number[]
   cards: number[]

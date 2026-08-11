@@ -27,7 +27,7 @@ export function CardInspectorPage() {
     try {
       setCard(await cardsApi.get(cardId))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load card')
+      setError(err instanceof Error ? err.message : 'Не удалось загрузить карточку')
     } finally {
       setLoading(false)
     }
@@ -56,22 +56,22 @@ export function CardInspectorPage() {
   }
 
   if (!card) {
-    return <Alert severity="error">{error || 'Card not found'}</Alert>
+    return <Alert severity="error">{error || 'Карточка не найдена'}</Alert>
   }
 
   return (
     <Stack spacing={2}>
       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
         <Typography variant="h4" sx={{ flexGrow: 1 }}>
-          Card #{card.id}
+          Карточка #{card.id}
         </Typography>
         {card.parentNodes[0] != null && (
           <Button onClick={() => navigate(`/memory-node/${card.parentNodes[0]}`)}>
-            Back to node
+            Назад к разделу
           </Button>
         )}
         <Button variant="contained" onClick={() => setEditOpen(true)}>
-          Edit
+          Редактировать
         </Button>
       </Box>
 
@@ -80,7 +80,7 @@ export function CardInspectorPage() {
 
       <CardDialog
         open={editOpen}
-        title={`Edit card #${card.id}`}
+        title={`Редактировать карточку #${card.id}`}
         submitting={saving}
         initialQuestion={card.question.map(({ type, text, index, code, extension, formula, imagePath, width }) => ({
           type,

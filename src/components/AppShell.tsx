@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setNavOpen(false)
       navigate(`/memory-node/${node.id}`)
     } catch (err) {
-      setNavError(err instanceof Error ? err.message : 'Not found')
+      setNavError(err instanceof Error ? err.message : 'Не найдено')
     }
   }
 
@@ -63,12 +63,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <>
               <Typography variant="body2" sx={{ opacity: 0.85, display: { xs: 'none', sm: 'block' } }}>
                 {user.name}
-                {user.role === 'admin' && ' · admin'}
+                {user.role === 'admin' && ' · админ'}
               </Typography>
-              <Button color="inherit" startIcon={<ExploreIcon />} onClick={() => setNavOpen(true)}>
-                Navigate
-              </Button>
-              <IconButton color="inherit" onClick={() => logout()} aria-label="logout">
+              {user.role === 'admin' && (
+                <Button color="inherit" startIcon={<ExploreIcon />} onClick={() => setNavOpen(true)}>
+                  Перейти
+                </Button>
+              )}
+              <IconButton color="inherit" onClick={() => logout()} aria-label="выйти">
                 <LogoutIcon />
               </IconButton>
             </>
@@ -81,19 +83,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Box>
 
       <Dialog open={navOpen} onClose={() => setNavOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Navigate</DialogTitle>
+        <DialogTitle>Перейти</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             fullWidth
             margin="dense"
-            label="ID, alias, or c &lt;cardId&gt;"
+            label="ID, псевдоним или c &lt;cardId&gt;"
             value={navInput}
             onChange={(e) => setNavInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void goNavigate()
             }}
-            helperText="Examples: 12 · root · c 45"
+            helperText="Примеры: 12 · root · c 45"
           />
           {navError && (
             <Typography color="error" variant="body2" sx={{ mt: 1 }}>
@@ -102,9 +104,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setNavOpen(false)}>Cancel</Button>
+          <Button onClick={() => setNavOpen(false)}>Отмена</Button>
           <Button variant="contained" onClick={() => void goNavigate()}>
-            Go
+            Перейти
           </Button>
         </DialogActions>
       </Dialog>

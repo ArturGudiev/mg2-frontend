@@ -4,6 +4,7 @@ import Divider from '@mui/material/Divider'
 import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
+import { useAuth } from '../auth/AuthContext'
 import type { Card } from '../types/models'
 import { CardItemView } from './CardItemView'
 
@@ -13,13 +14,16 @@ interface CardViewProps {
 }
 
 export function CardView({ card, showAnswer = true }: CardViewProps) {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
         <Typography variant="overline" color="text.secondary">
-          Question · #{card.id}
+          Вопрос{isAdmin ? ` · #${card.id}` : ''}
         </Typography>
-        {card.shared && <Chip size="small" color="info" label="shared" />}
+        {isAdmin && card.shared && <Chip size="small" color="info" label="общий" />}
       </Stack>
       <Stack spacing={1.5} sx={{ mt: 1 }}>
         {card.question.map((item) => (
@@ -31,7 +35,7 @@ export function CardView({ card, showAnswer = true }: CardViewProps) {
         <>
           <Divider sx={{ my: 2 }} />
           <Typography variant="overline" color="text.secondary">
-            Answer
+            Ответ
           </Typography>
           <Stack spacing={1.5} sx={{ mt: 1 }}>
             {card.answer.map((item) => (
@@ -42,8 +46,7 @@ export function CardView({ card, showAnswer = true }: CardViewProps) {
       )}
 
       <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-        <Typography variant="caption">count: {card.count}</Typography>
-        <Typography variant="caption">usage: {card.usageType}</Typography>
+        <Typography variant="caption">повторений: {card.count}</Typography>
       </Box>
     </Paper>
   )

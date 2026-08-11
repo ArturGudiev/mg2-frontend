@@ -34,7 +34,7 @@ export function HomePage() {
       const data = await memoryNodesApi.listRoots()
       setNodes(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load nodes')
+      setError(err instanceof Error ? err.message : 'Не удалось загрузить разделы')
     } finally {
       setLoading(false)
     }
@@ -55,10 +55,10 @@ export function HomePage() {
   return (
     <Stack spacing={2}>
       <Box>
-        <Typography variant="h4">Memory nodes</Typography>
+        {/* <Typography variant="h4">Маршруты</Typography>
         <Typography color="text.secondary">
-          Root nodes — open one to browse children and cards.
-        </Typography>
+          Выберите корневой раздел, чтобы перейти к дочерним разделам и карточкам.
+        </Typography> */}
       </Box>
 
       {error && <Alert severity="error">{error}</Alert>}
@@ -74,41 +74,44 @@ export function HomePage() {
             pb: 0.5,
           }}
         >
-          <Typography variant="h6">Root nodes</Typography>
-          <IconButton
+          <Typography variant="h6">Разделы</Typography>
+          {isAdmin &&(<IconButton
             color="primary"
-            aria-label="add memory node"
+            aria-label="добавить корневой раздел"
             onClick={() => setCreateOpen(true)}
           >
             <AddIcon />
-          </IconButton>
+          </IconButton>)}
         </Box>
         <List>
-          {nodes.map((node) => (
+          {nodes.map((node, index) => (
             <ListItemButton key={node.id} onClick={() => navigate(`/memory-node/${node.id}`)}>
               <ListItemText
                 primary={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography component="span" color="primary" sx={{ minWidth: 24 }}>
+                      {index + 1}.
+                    </Typography>
                     <span>
                       {node.name} (#{node.id})
                     </span>
-                    {node.shared && <Chip size="small" label="shared" color="info" />}
+                    {isAdmin && node.shared && <Chip size="small" label="общий" color="info" />}
                   </Box>
                 }
                 secondary={[
-                  `${node.children.length} children`,
-                  `${node.cards.length} cards`,
-                  node.aliases.length ? `aliases: ${node.aliases.join(', ')}` : null,
+                  `${node.children.length} дочерних`,
+                  `${node.cards.length} карточек`,
+                  node.aliases.length ? `псевдонимы: ${node.aliases.join(', ')}` : null,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
               />
             </ListItemButton>
           ))}
-          {nodes.length === 0 && (
+          {nodes.length === 0 && isAdmin && (
             <Box sx={{ p: 3 }}>
               <Typography color="text.secondary">
-                No memory nodes yet. Press + to create a root node.
+                Маршрутов пока нет. Нажмите +, чтобы создать корневой раздел.
               </Typography>
             </Box>
           )}
@@ -120,11 +123,12 @@ export function HomePage() {
         submitting={creating}
         allowShared={isAdmin}
         onClose={() => setCreateOpen(false)}
-        onSubmit={async ({ name, aliases, shared }) => {
+        onSubmit={async ({ name, description, aliases, shared }) => {
           setCreating(true)
           try {
             const node = await memoryNodesApi.create({
               name,
+              description,
               aliases,
               shared,
               parents: [],

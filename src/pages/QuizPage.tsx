@@ -73,7 +73,7 @@ export function QuizPage() {
       } catch (err) {
         savingRef.current = false
         setSaving(false)
-        setError(err instanceof Error ? err.message : 'Failed to save quiz results')
+        setError(err instanceof Error ? err.message : 'Не удалось сохранить результаты викторины')
       }
     })()
   }, [pendingSave, session, clearQuiz, navigate])
@@ -139,7 +139,7 @@ export function QuizPage() {
   if (pendingSave || saving) {
     return (
       <Stack spacing={2} sx={{ maxWidth: 900, mx: 'auto' }}>
-        <Typography variant="h4">Quiz</Typography>
+        <Typography variant="h4">Викторина</Typography>
         {error ? (
           <Alert
             severity="error"
@@ -152,7 +152,7 @@ export function QuizPage() {
                   setPendingSave([...(pendingSave ?? cards)])
                 }}
               >
-                Retry
+                Повторить
               </Button>
             }
           >
@@ -161,7 +161,7 @@ export function QuizPage() {
         ) : (
           <Paper sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
             <CircularProgress size={24} />
-            <Typography>Saving…</Typography>
+            <Typography>Сохранение…</Typography>
           </Paper>
         )}
       </Stack>
@@ -170,12 +170,12 @@ export function QuizPage() {
 
   return (
     <Stack spacing={2} sx={{ maxWidth: 900, mx: 'auto' }}>
-      <Typography variant="h4">Quiz</Typography>
+      <Typography variant="h4">Викторина</Typography>
       <Typography color="text.secondary">
-        Tracking <strong>count</strong> until {session.until} · remaining {unfinishedCount}
+        Цель: {session.until} · осталось карточек: {unfinishedCount}
       </Typography>
       <Typography variant="caption" color="text.secondary">
-        Keys: 1 reveal/success · 2 fail · 5 success
+        Клавиши: 1 показать/успех · 2 провал · 5 успех
       </Typography>
 
       {current && (
@@ -183,8 +183,8 @@ export function QuizPage() {
           <Paper variant="outlined" sx={{ p: 1.5 }}>
             <Typography variant="body2">
               {current.count === original[current.id]
-                ? `Value ( ${current.count} )`
-                : `Start – current (${original[current.id]} – ${current.count})`}
+                ? `Повторений: ${current.count} → цель ${session.until}`
+                : `Повторений: ${original[current.id]} → ${current.count} → цель ${session.until}`}
             </Typography>
           </Paper>
 
@@ -193,14 +193,14 @@ export function QuizPage() {
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             {!showAnswer && (
               <Button variant="contained" onClick={() => setShowAnswer(true)}>
-                Reveal answer (1)
+                Показать ответ (1)
               </Button>
             )}
             <Button variant="contained" color="success" onClick={markSuccess}>
-              Success {showAnswer ? '(1 / 5)' : '(5)'}
+              Знаю {showAnswer ? '(1 / 5)' : '(5)'}
             </Button>
             <Button variant="outlined" color="error" onClick={markFail}>
-              Fail (2)
+              Не знаю (2)
             </Button>
             <Button
               onClick={() => {
@@ -208,7 +208,7 @@ export function QuizPage() {
                 navigate(session.lastNodeId ? `/memory-node/${session.lastNodeId}` : '/')
               }}
             >
-              Abort
+              Прервать
             </Button>
           </Box>
         </>

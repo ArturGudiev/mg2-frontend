@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
+import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
@@ -15,6 +16,7 @@ import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import type { CardItemInput, CardItemType } from '../types/models'
+import { MarkdownContent } from './MarkdownContent'
 
 const ITEM_TYPES: CardItemType[] = [
   'TEXT',
@@ -23,6 +25,7 @@ const ITEM_TYPES: CardItemType[] = [
   'IMAGE',
   'TEXT_WITH_HIGHLIGHTED_SYMBOL',
   'WORD_WITH_STRESS',
+  'MARKDOWN',
 ]
 
 function emptyItem(type: CardItemType = 'TEXT'): CardItemInput {
@@ -42,9 +45,9 @@ function ItemEditor({
     <Stack spacing={1.5} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
         <FormControl size="small" sx={{ minWidth: 220 }}>
-          <InputLabel>Type</InputLabel>
+          <InputLabel>Тип</InputLabel>
           <Select
-            label="Type"
+            label="Тип"
             value={item.type}
             onChange={(e) => onChange({ ...item, type: e.target.value as CardItemType })}
           >
@@ -55,7 +58,7 @@ function ItemEditor({
             ))}
           </Select>
         </FormControl>
-        <IconButton color="error" onClick={onRemove} aria-label="remove item">
+        <IconButton color="error" onClick={onRemove} aria-label="удалить элемент">
           <DeleteIcon />
         </IconButton>
       </Stack>
@@ -64,7 +67,7 @@ function ItemEditor({
         item.type === 'TEXT_WITH_HIGHLIGHTED_SYMBOL' ||
         item.type === 'WORD_WITH_STRESS') && (
         <TextField
-          label="Text"
+          label="Текст"
           multiline
           minRows={2}
           value={item.text ?? ''}
@@ -73,7 +76,7 @@ function ItemEditor({
       )}
       {(item.type === 'TEXT_WITH_HIGHLIGHTED_SYMBOL' || item.type === 'WORD_WITH_STRESS') && (
         <TextField
-          label="Highlight index"
+          label="Индекс выделения"
           type="number"
           value={item.index ?? 0}
           onChange={(e) => onChange({ ...item, index: Number(e.target.value) })}
@@ -82,12 +85,12 @@ function ItemEditor({
       {item.type === 'CODE' && (
         <>
           <TextField
-            label="Extension"
+            label="Расширение"
             value={item.extension ?? ''}
             onChange={(e) => onChange({ ...item, extension: e.target.value })}
           />
           <TextField
-            label="Code"
+            label="Код"
             multiline
             minRows={4}
             value={item.code ?? ''}
@@ -97,7 +100,7 @@ function ItemEditor({
       )}
       {item.type === 'FORMULA' && (
         <TextField
-          label="Formula"
+          label="Формула"
           value={item.formula ?? ''}
           onChange={(e) => onChange({ ...item, formula: e.target.value })}
         />
@@ -105,16 +108,59 @@ function ItemEditor({
       {item.type === 'IMAGE' && (
         <>
           <TextField
-            label="Image path / URL"
+            label="Путь к изображению / URL"
             value={item.imagePath ?? ''}
             onChange={(e) => onChange({ ...item, imagePath: e.target.value })}
           />
           <TextField
-            label="Width"
+            label="Ширина"
             value={item.width ?? ''}
             onChange={(e) => onChange({ ...item, width: e.target.value })}
           />
         </>
+      )}
+      {item.type === 'MARKDOWN' && (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+            gap: 1.5,
+            minHeight: 220,
+          }}
+        >
+          <TextField
+            label="Markdown"
+            multiline
+            minRows={10}
+            value={item.text ?? ''}
+            onChange={(e) => onChange({ ...item, text: e.target.value })}
+            sx={{
+              '& .MuiInputBase-root': { height: '100%', alignItems: 'stretch' },
+              '& textarea': { fontFamily: 'ui-monospace, monospace', fontSize: 13 },
+            }}
+          />
+          <Box
+            sx={{
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1,
+              p: 1.5,
+              overflow: 'auto',
+              bgcolor: 'action.hover',
+            }}
+          >
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+              Превью
+            </Typography>
+            {(item.text ?? '').trim() ? (
+              <MarkdownContent source={item.text ?? ''} />
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                Начните вводить Markdown…
+              </Typography>
+            )}
+          </Box>
+        </Box>
       )}
     </Stack>
   )
@@ -150,12 +196,15 @@ export function CardDialog({
     setError('')
   }, [open, initialQuestion, initialAnswer])
 
+  const hasMarkdown =
+    question.some((item) => item.type === 'MARKDOWN') || answer.some((item) => item.type === 'MARKDOWN')
+
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth={hasMarkdown ? 'lg' : 'md'}>
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
-          <Typography variant="subtitle1">Question</Typography>
+          <Typography variant="subtitle1">Вопрос</Typography>
           {question.map((item, idx) => (
             <ItemEditor
               key={`q-${idx}`}
@@ -167,10 +216,10 @@ export function CardDialog({
             />
           ))}
           <Button startIcon={<AddIcon />} onClick={() => setQuestion((p) => [...p, emptyItem()])}>
-            Add question item
+            Добавить элемент вопроса
           </Button>
 
-          <Typography variant="subtitle1">Answer</Typography>
+          <Typography variant="subtitle1">Ответ</Typography>
           {answer.map((item, idx) => (
             <ItemEditor
               key={`a-${idx}`}
@@ -182,7 +231,7 @@ export function CardDialog({
             />
           ))}
           <Button startIcon={<AddIcon />} onClick={() => setAnswer((p) => [...p, emptyItem()])}>
-            Add answer item
+            Добавить элемент ответа
           </Button>
 
           {error && (
@@ -193,7 +242,7 @@ export function CardDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>Отмена</Button>
         <Button
           variant="contained"
           disabled={submitting || question.length === 0 || answer.length === 0}
@@ -203,11 +252,11 @@ export function CardDialog({
               await onSubmit(question, answer)
               onClose()
             } catch (err) {
-              setError(err instanceof Error ? err.message : 'Failed to save card')
+              setError(err instanceof Error ? err.message : 'Не удалось сохранить карточку')
             }
           }}
         >
-          Save
+          Сохранить
         </Button>
       </DialogActions>
     </Dialog>

@@ -4,6 +4,7 @@ import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import type { CardItem } from '../types/models'
+import { MarkdownContent } from './MarkdownContent'
 
 function highlightText(text: string, index: number | null | undefined) {
   if (index == null || index < 0 || index >= text.length) return text
@@ -33,7 +34,7 @@ export function CardItemView({ item }: { item: CardItem }) {
       return (
         <Paper variant="outlined" sx={{ p: 1.5, bgcolor: '#1e1e1e', overflow: 'auto' }}>
           <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-            <Chip size="small" label={item.extension || 'code'} />
+            <Chip size="small" label={item.extension || 'код'} />
           </Stack>
           <Box
             component="pre"
@@ -62,12 +63,14 @@ export function CardItemView({ item }: { item: CardItem }) {
         <Box
           component="img"
           src={item.imagePath}
-          alt="card"
+          alt="карточка"
           sx={{ maxWidth: item.width || '100%', borderRadius: 1 }}
         />
       ) : (
-        <Typography color="text.secondary">No image</Typography>
+        <Typography color="text.secondary">Нет изображения</Typography>
       )
+    case 'MARKDOWN':
+      return <MarkdownContent source={item.text ?? ''} />
     default:
       return <Typography color="text.secondary">{item.type}</Typography>
   }

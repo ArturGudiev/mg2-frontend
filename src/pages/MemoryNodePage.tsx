@@ -1,24 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import AddIcon from '@mui/icons-material/Add'
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import FormControl from '@mui/material/FormControl'
-import FormControlLabel from '@mui/material/FormControlLabel'
 import IconButton from '@mui/material/IconButton'
 import InputLabel from '@mui/material/InputLabel'
-import List from '@mui/material/List'
-import ListItemButton from '@mui/material/ListItemButton'
+import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
+import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
-import Paper from '@mui/material/Paper'
 import Select from '@mui/material/Select'
 import Stack from '@mui/material/Stack'
 import Switch from '@mui/material/Switch'
+import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { cardsApi, memoryNodesApi } from '../api'
 import { useAuth } from '../auth/AuthContext'
@@ -26,15 +25,28 @@ import { CardDialog } from '../components/CardDialog'
 import { CardsSelector } from '../components/CardsSelector'
 import { CardsTable } from '../components/CardsTable'
 import { MemoryNodeDialog } from '../components/MemoryNodeDialog'
+import { NodeBrowser } from '../components/NodeBrowser'
 import { ParentsPath } from '../components/ParentsPath'
 import type {
   Card,
+  CardItem,
   CardItemInput,
   CardsGroup,
   CardsPriority,
   MemoryNode,
   MemoryNodePathItem,
 } from '../types/models'
+
+function cardItemSearchText(item: CardItem): string {
+  return [item.text, item.code, item.formula].filter(Boolean).join(' ')
+}
+
+function cardMatchesText(card: Card, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  const items = [...card.question, ...card.answer]
+  return items.some((item) => cardItemSearchText(item).toLowerCase().includes(q))
+}
 
 export function MemoryNodePage() {
   const { id } = useParams()
@@ -51,14 +63,16 @@ export function MemoryNodePage() {
   const [error, setError] = useState('')
   const [priority, setPriority] = useState<CardsPriority | null>(null)
   const [group, setGroup] = useState<CardsGroup | null>(null)
+  const [cardTextFilter, setCardTextFilter] = useState('')
   const [createCardOpen, setCreateCardOpen] = useState(false)
   const [createChildOpen, setCreateChildOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [creatingChild, setCreatingChild] = useState(false)
+  const [settingsAnchor, setSettingsAnchor] = useState<null | HTMLElement>(null)
 
   const load = useCallback(async () => {
     if (!Number.isFinite(nodeId) || nodeId <= 0) {
-      setError('Invalid memory node id')
+      setError('Неверный идентификатор раздела памяти')
       setLoading(false)
       return
     }
@@ -78,7 +92,7 @@ export function MemoryNodePage() {
       setChildren(childNodes)
       setCards(cardList)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load memory node')
+      setError(err instanceof Error ? err.message : 'Не удалось загрузить раздел памяти')
     } finally {
       setLoading(false)
     }
@@ -87,6 +101,12 @@ export function MemoryNodePage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    setPriority(null)
+    setGroup(null)
+    setCardTextFilter('')
+  }, [nodeId])
 
   const filteredCards = useMemo(() => {
     let list = cards
@@ -98,8 +118,11 @@ export function MemoryNodePage() {
       const set = new Set(group.cards)
       list = list.filter((c) => set.has(c.id))
     }
+    if (cardTextFilter.trim()) {
+      list = list.filter((c) => cardMatchesText(c, cardTextFilter))
+    }
     return list
-  }, [cards, priority, group])
+  }, [cards, priority, group, cardTextFilter])
 
   const createCard = async (question: CardItemInput[], answer: CardItemInput[]) => {
     setSaving(true)
@@ -112,8 +135,13 @@ export function MemoryNodePage() {
   }
 
   const deleteCards = async (ids: number[]) => {
-    await cardsApi.remove(ids)
-    await load()
+    try {
+      await cardsApi.remove(ids)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось удалить карточки')
+      throw err
+    }
   }
 
   const toggleShared = async (shared: boolean) => {
@@ -122,7 +150,7 @@ export function MemoryNodePage() {
       const updated = await memoryNodesApi.update({ id: node.id, shared })
       setNode(updated)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update shared flag')
+      setError(err instanceof Error ? err.message : 'Не удалось обновить флаг общего доступа')
     }
   }
 
@@ -135,41 +163,67 @@ export function MemoryNodePage() {
   }
 
   if (!node) {
-    return <Alert severity="error">{error || 'Memory node not found'}</Alert>
+    return <Alert severity="error">{error || 'Раздел памяти не найден'}</Alert>
   }
 
   return (
     <Stack spacing={2}>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}>
-        {node.parents[0] != null && (
-          <Button
-            startIcon={<ArrowUpwardIcon />}
-            onClick={() => navigate(`/memory-node/${node.parents[0]}`)}
-          >
-            Parent
-          </Button>
-        )}
-        <Typography variant="h4" sx={{ flexGrow: 1 }}>
-          {node.name}{' '}
-          <Typography component="span" color="text.secondary" variant="h5">
-            #{node.id}
+      <Box>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+          {node.parents[0] != null && (
+            <Button
+              startIcon={<ArrowBackIcon />}
+              onClick={() => navigate(`/memory-node/${node.parents[0]}`)}
+            >
+              Назад
+            </Button>
+          )}
+          <Typography variant="h4" sx={{ flexGrow: 1 }}>
+            {node.name}
           </Typography>
-        </Typography>
-        {node.shared && <Chip size="small" color="info" label="shared" />}
-        {isAdmin && user?.id === node.userId && (
-          <FormControlLabel
-            control={
-              <Switch
-                checked={node.shared}
-                onChange={(e) => void toggleShared(e.target.checked)}
-              />
-            }
-            label="Share with everyone"
-          />
+          {isAdmin && node.shared && <Chip size="small" color="info" label="общий" />}
+          {isAdmin && user?.id === node.userId && (
+            <>
+              <IconButton
+                aria-label="настройки раздела"
+                onClick={(e) => setSettingsAnchor(e.currentTarget)}
+              >
+                <MoreVertIcon />
+              </IconButton>
+              <Menu
+                anchorEl={settingsAnchor}
+                open={Boolean(settingsAnchor)}
+                onClose={() => setSettingsAnchor(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              >
+                <MenuItem
+                  onClick={() => {
+                    void toggleShared(!node.shared)
+                    setSettingsAnchor(null)
+                  }}
+                >
+                  <ListItemIcon>
+                    <Switch size="small" edge="start" checked={node.shared} tabIndex={-1} disableRipple />
+                  </ListItemIcon>
+                  <ListItemText primary="Общий доступ" secondary="Доступ только по приглашению (не всем)" />
+                </MenuItem>
+              </Menu>
+            </>
+          )}
+        </Box>
+        {(isAdmin || node.aliases.length > 0) && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            {isAdmin && `#${node.id}`}
+            {isAdmin && node.aliases.length > 0 && ' · '}
+            {node.aliases.length > 0 && node.aliases.join(', ')}
+          </Typography>
         )}
-        {node.aliases.map((alias) => (
-          <Chip key={alias} label={alias} size="small" />
-        ))}
+        {node.description?.trim() && (
+          <Typography variant="body1" sx={{ mt: 1, whiteSpace: 'pre-wrap' }}>
+            {node.description}
+          </Typography>
+        )}
       </Box>
 
       <ParentsPath
@@ -177,18 +231,32 @@ export function MemoryNodePage() {
         onNavigate={(id) => navigate(`/memory-node/${id}`)}
       />
 
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ flexWrap: 'wrap' }} useFlexGap>
+        {cards.length > 0 && (
+          <TextField
+            size="small"
+            label="Поиск карточек"
+            placeholder="Текст вопроса или ответа"
+            value={cardTextFilter}
+            onChange={(e) => setCardTextFilter(e.target.value)}
+            sx={{ minWidth: 220, flex: { md: '1 1 220px' }, maxWidth: 360 }}
+          />
+        )}
         {node.priorities?.length > 0 && (
           <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>Priority</InputLabel>
+            <InputLabel>Приоритет</InputLabel>
             <Select
-              label="Priority"
+              label="Приоритет"
               value={priority?.name ?? ''}
+              displayEmpty
               onChange={(e) => {
                 const next = node.priorities.find((p) => p.name === e.target.value) ?? null
                 setPriority(next)
               }}
             >
+              <MenuItem value="">
+                <em>— все —</em>
+              </MenuItem>
               {node.priorities.map((p) => (
                 <MenuItem key={p.name} value={p.name}>
                   {p.number} {p.name}
@@ -197,22 +265,21 @@ export function MemoryNodePage() {
             </Select>
           </FormControl>
         )}
-        {priority && (
-          <Button size="small" onClick={() => setPriority(null)}>
-            Clear priority
-          </Button>
-        )}
         {node.groups?.length > 0 && (
           <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>Group</InputLabel>
+            <InputLabel>Группа</InputLabel>
             <Select
-              label="Group"
+              label="Группа"
               value={group?.name ?? ''}
+              displayEmpty
               onChange={(e) => {
                 const next = node.groups.find((g) => g.name === e.target.value) ?? null
                 setGroup(next)
               }}
             >
+              <MenuItem value="">
+                <em>— все —</em>
+              </MenuItem>
               {node.groups.map((g) => (
                 <MenuItem key={g.name} value={g.name}>
                   {g.name} ({g.cards.length})
@@ -220,11 +287,6 @@ export function MemoryNodePage() {
               ))}
             </Select>
           </FormControl>
-        )}
-        {group && (
-          <Button size="small" onClick={() => setGroup(null)}>
-            Clear group
-          </Button>
         )}
       </Stack>
 
@@ -239,76 +301,37 @@ export function MemoryNodePage() {
         }}
       >
         <Stack spacing={2}>
-          <Paper variant="outlined">
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                px: 1.5,
-                pt: 1.5,
-                pb: 0.5,
-              }}
-            >
-              <Typography variant="h6">Children</Typography>
-              <IconButton
-                color="primary"
-                aria-label="add child memory node"
-                onClick={() => setCreateChildOpen(true)}
-              >
-                <AddIcon />
-              </IconButton>
-            </Box>
-            <List dense>
-              {children.map((child) => (
-                <ListItemButton
-                  key={child.id}
-                  onClick={() => navigate(`/memory-node/${child.id}`)}
-                >
-                  <ListItemText
-                    primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <span>
-                          {child.name} (#{child.id})
-                        </span>
-                        {child.shared && <Chip size="small" label="shared" color="info" />}
-                      </Box>
-                    }
-                    secondary={`${child.cards.length} cards`}
-                  />
-                </ListItemButton>
-              ))}
-              {children.length === 0 && (
-                <Box sx={{ px: 2, py: 1.5 }}>
-                  <Typography color="text.secondary" variant="body2">
-                    No children yet. Press + to add one.
-                  </Typography>
-                </Box>
-              )}
-            </List>
-          </Paper>
+          <NodeBrowser
+            children={children}
+            isAdmin={isAdmin}
+            onOpenChild={(child) => navigate(`/memory-node/${child.id}`)}
+            onAddChild={() => setCreateChildOpen(true)}
+          />
 
           <CardsTable
             cards={filteredCards}
+            isAdmin={isAdmin}
             onOpen={(card) => navigate(`/card/${card.id}`)}
             onCreate={() => setCreateCardOpen(true)}
             onDelete={(ids) => void deleteCards(ids)}
           />
         </Stack>
 
-        <Stack spacing={2}>
-          <CardsSelector
-            memoryNodeId={node.id}
-            cards={filteredCards}
-            selectedPriority={priority}
-            selectedGroup={group}
-          />
-        </Stack>
+        {cards.length > 0 && (
+          <Stack spacing={2}>
+            <CardsSelector
+              memoryNodeId={node.id}
+              cards={filteredCards}
+              selectedPriority={priority}
+              selectedGroup={group}
+            />
+          </Stack>
+        )}
       </Box>
 
       <CardDialog
         open={createCardOpen}
-        title="New card"
+        title="Новая карточка"
         submitting={saving}
         onClose={() => setCreateCardOpen(false)}
         onSubmit={createCard}
@@ -316,16 +339,17 @@ export function MemoryNodePage() {
 
       <MemoryNodeDialog
         open={createChildOpen}
-        title="New child node"
+        title="Новый дочерний раздел"
         submitting={creatingChild}
         defaultShared={node.shared}
         allowShared={isAdmin}
         onClose={() => setCreateChildOpen(false)}
-        onSubmit={async ({ name, aliases, shared }) => {
+        onSubmit={async ({ name, description, aliases, shared }) => {
           setCreatingChild(true)
           try {
-            const child = await memoryNodesApi.create({
+            await memoryNodesApi.create({
               name,
+              description,
               aliases,
               shared,
               parents: [node.id],
@@ -333,7 +357,6 @@ export function MemoryNodePage() {
               cards: [],
             })
             await load()
-            navigate(`/memory-node/${child.id}`)
           } finally {
             setCreatingChild(false)
           }
