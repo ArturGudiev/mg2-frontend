@@ -14,6 +14,7 @@ import TableHead from '@mui/material/TableHead'
 import TablePagination from '@mui/material/TablePagination'
 import TableRow from '@mui/material/TableRow'
 import TableSortLabel from '@mui/material/TableSortLabel'
+import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import type { Card } from '../types/models'
 import { CardHoverPreview } from './CardHoverPreview'
@@ -29,12 +30,22 @@ function preview(card: Card): string {
 interface CardsTableProps {
   cards: Card[]
   isAdmin?: boolean
+  textFilter?: string
+  onTextFilterChange?: (value: string) => void
   onOpen: (card: Card) => void
   onCreate: () => void
   onDelete: (ids: number[]) => void | Promise<void>
 }
 
-export function CardsTable({ cards, isAdmin = false, onOpen, onCreate, onDelete }: CardsTableProps) {
+export function CardsTable({
+  cards,
+  isAdmin = false,
+  textFilter,
+  onTextFilterChange,
+  onOpen,
+  onCreate,
+  onDelete,
+}: CardsTableProps) {
   const [selected, setSelected] = useState<number[]>([])
   const [orderBy, setOrderBy] = useState<SortKey>('count')
   const [order, setOrder] = useState<'asc' | 'desc'>('asc')
@@ -72,27 +83,90 @@ export function CardsTable({ cards, isAdmin = false, onOpen, onCreate, onDelete 
     }
   }
 
+  const handleDelete = () => {
+    const ids = selected
+    setDeleting(true)
+    void Promise.resolve(onDelete(ids))
+      .then(() => setSelected([]))
+      .finally(() => setDeleting(false))
+  }
+
+  const deleteDisabled = selected.length === 0 || deleting
+
   return (
     <Paper variant="outlined">
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5 }}>
-        <Typography variant="h6">Карточки</Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          flexWrap: { sm: 'wrap' },
+          justifyContent: 'space-between',
+          alignItems: { xs: 'stretch', sm: 'center' },
+          gap: 1.5,
+          p: 1.5,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+          <Typography variant="h6">Карточки</Typography>
+          {isAdmin && (
+            <IconButton
+              color="primary"
+              onClick={onCreate}
+              aria-label="новая карточка"
+              sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
+            >
+              <AddIcon />
+            </IconButton>
+          )}
+        </Box>
+
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', minWidth: 0, flex: { sm: '0 1 auto' } }}>
+          {onTextFilterChange != null && (
+            <TextField
+              size="small"
+              label="Поиск"
+              placeholder="Текст вопроса или ответа"
+              value={textFilter ?? ''}
+              onChange={(e) => onTextFilterChange(e.target.value)}
+              sx={{
+                flex: { xs: '0 0 16rem', sm: '0 0 auto' },
+                width: { xs: '16rem', sm: 220 },
+                minWidth: 0,
+              }}
+            />
+          )}
+          <IconButton
+            color="error"
+            disabled={deleteDisabled}
+            onClick={handleDelete}
+            aria-label="удалить"
+            sx={{ 
+              display: { xs: 'inline-flex', sm: 'none' }, 
+              ml: { xs: 'auto', sm: 0 },
+              mr: { xs: '1rem', sm: 0 },
+              right: 0, 
+              flexShrink: 0,
+              position: 'absolute',
+            }}
+          >
+            <DeleteIcon />
+          </IconButton>
           <Button
             color="error"
             startIcon={<DeleteIcon />}
-            disabled={selected.length === 0 || deleting}
-            onClick={() => {
-              const ids = selected
-              setDeleting(true)
-              void Promise.resolve(onDelete(ids))
-                .then(() => setSelected([]))
-                .finally(() => setDeleting(false))
-            }}
+            disabled={deleteDisabled}
+            onClick={handleDelete}
+            sx={{ display: { xs: 'none', sm: 'inline-flex' }, flexShrink: 0 }}
           >
             Удалить
           </Button>
           {isAdmin && (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={onCreate}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={onCreate}
+              sx={{ display: { xs: 'none', sm: 'inline-flex' }, flexShrink: 0 }}
+            >
               Новая карточка
             </Button>
           )}
@@ -185,6 +259,7 @@ export function CardsTable({ cards, isAdmin = false, onOpen, onCreate, onDelete 
         component="div"
         count={sorted.length}
         page={page}
+        labelRowsPerPage="Карточек на странице:"
         onPageChange={(_, p) => setPage(p)}
         rowsPerPage={rowsPerPage}
         onRowsPerPageChange={(e) => {

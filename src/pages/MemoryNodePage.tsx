@@ -7,17 +7,13 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
-import FormControl from '@mui/material/FormControl'
 import IconButton from '@mui/material/IconButton'
-import InputLabel from '@mui/material/InputLabel'
 import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
-import Select from '@mui/material/Select'
 import Stack from '@mui/material/Stack'
 import Switch from '@mui/material/Switch'
-import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { cardsApi, memoryNodesApi } from '../api'
 import { useAuth } from '../auth/AuthContext'
@@ -231,65 +227,6 @@ export function MemoryNodePage() {
         onNavigate={(id) => navigate(`/memory-node/${id}`)}
       />
 
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ flexWrap: 'wrap' }} useFlexGap>
-        {cards.length > 0 && (
-          <TextField
-            size="small"
-            label="Поиск карточек"
-            placeholder="Текст вопроса или ответа"
-            value={cardTextFilter}
-            onChange={(e) => setCardTextFilter(e.target.value)}
-            sx={{ minWidth: 220, flex: { md: '1 1 220px' }, maxWidth: 360 }}
-          />
-        )}
-        {node.priorities?.length > 0 && (
-          <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>Приоритет</InputLabel>
-            <Select
-              label="Приоритет"
-              value={priority?.name ?? ''}
-              displayEmpty
-              onChange={(e) => {
-                const next = node.priorities.find((p) => p.name === e.target.value) ?? null
-                setPriority(next)
-              }}
-            >
-              <MenuItem value="">
-                <em>— все —</em>
-              </MenuItem>
-              {node.priorities.map((p) => (
-                <MenuItem key={p.name} value={p.name}>
-                  {p.number} {p.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        )}
-        {node.groups?.length > 0 && (
-          <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>Группа</InputLabel>
-            <Select
-              label="Группа"
-              value={group?.name ?? ''}
-              displayEmpty
-              onChange={(e) => {
-                const next = node.groups.find((g) => g.name === e.target.value) ?? null
-                setGroup(next)
-              }}
-            >
-              <MenuItem value="">
-                <em>— все —</em>
-              </MenuItem>
-              {node.groups.map((g) => (
-                <MenuItem key={g.name} value={g.name}>
-                  {g.name} ({g.cards.length})
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        )}
-      </Stack>
-
       {error && <Alert severity="error">{error}</Alert>}
 
       <Box
@@ -301,20 +238,22 @@ export function MemoryNodePage() {
         }}
       >
         <Stack spacing={2}>
-          <NodeBrowser
+          {(isAdmin || children.length > 0) && <NodeBrowser
             children={children}
             isAdmin={isAdmin}
             onOpenChild={(child) => navigate(`/memory-node/${child.id}`)}
             onAddChild={() => setCreateChildOpen(true)}
-          />
+          />}
 
-          <CardsTable
+          {(isAdmin || cards.length > 0) && ( <CardsTable
             cards={filteredCards}
             isAdmin={isAdmin}
+            textFilter={cardTextFilter}
+            onTextFilterChange={setCardTextFilter}
             onOpen={(card) => navigate(`/card/${card.id}`)}
             onCreate={() => setCreateCardOpen(true)}
             onDelete={(ids) => void deleteCards(ids)}
-          />
+          />)}
         </Stack>
 
         {cards.length > 0 && (

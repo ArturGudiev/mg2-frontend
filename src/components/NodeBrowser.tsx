@@ -30,9 +30,10 @@ export function NodeBrowser({ children, isAdmin = false, onOpenChild, onAddChild
         }}
       >
         <Typography variant="h6">Разделы</Typography>
-        <IconButton color="primary" aria-label="добавить раздел" onClick={onAddChild}>
-          <AddIcon />
-        </IconButton>
+        {isAdmin && <IconButton color="primary" aria-label="добавить раздел" onClick={onAddChild}>
+            <AddIcon />
+          </IconButton>
+        }
       </Box>
       <List dense>
         {children.map((child, index) => (
@@ -54,7 +55,7 @@ export function NodeBrowser({ children, isAdmin = false, onOpenChild, onAddChild
             />
           </ListItemButton>
         ))}
-        {children.length === 0 && (
+        {children.length === 0 && isAdmin && (
           <Box sx={{ px: 2, py: 1.5 }}>
             <Typography color="text.secondary" variant="body2">
               Дочерних разделов нет. Нажмите +, чтобы добавить.

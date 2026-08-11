@@ -11,6 +11,8 @@ import { cardsApi } from '../api'
 import { CardView } from '../components/CardView'
 import { useQuiz } from '../store/QuizContext'
 import type { Card } from '../types/models'
+import useMediaQuery from '@mui/material/useMediaQuery'
+import { useTheme } from '@mui/material/styles'
 
 function pickNext(cards: Card[], until: number, previousId: number | null) {
   const unfinished = cards.filter((c) => c.count < until)
@@ -31,6 +33,9 @@ export function QuizPage() {
   const [error, setError] = useState('')
   const [pendingSave, setPendingSave] = useState<Card[] | null>(null)
   const savingRef = useRef(false)
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+
 
   useEffect(() => {
     if (!session) return
@@ -193,15 +198,15 @@ export function QuizPage() {
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             {!showAnswer && (
               <Button variant="contained" onClick={() => setShowAnswer(true)}>
-                Показать ответ (1)
+                {`Показать ответ${isMobile ? '' : ' (1)'}`}
               </Button>
             )}
             <Button variant="contained" color="success" onClick={markSuccess}>
-              Знаю {showAnswer ? '(1 / 5)' : '(5)'}
+            {`Знаю${isMobile ? '' : showAnswer ? ' (1 / 5)' : ' (5)'}`}
             </Button>
             <Button variant="outlined" color="error" onClick={markFail}>
-              Не знаю (2)
-            </Button>
+              {`Не знаю${isMobile ? '' : ' (2)'}`}
+            </Button> 
             <Button
               onClick={() => {
                 clearQuiz()
