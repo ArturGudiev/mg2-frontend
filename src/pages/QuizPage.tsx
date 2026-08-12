@@ -144,7 +144,7 @@ export function QuizPage() {
   if (pendingSave || saving) {
     return (
       <Stack spacing={2} sx={{ maxWidth: 900, mx: 'auto' }}>
-        <Typography variant="h4">Викторина</Typography>
+        <Typography variant="h4">Практика</Typography>
         {error ? (
           <Alert
             severity="error"
@@ -183,7 +183,7 @@ export function QuizPage() {
         pb: 14,
       }}
     >
-      <Typography variant="h4">Викторина</Typography>
+      <Typography variant="h4">Практика</Typography>
       <Typography color="text.secondary">
         Цель: {session.until} · осталось карточек: {unfinishedCount}
       </Typography>

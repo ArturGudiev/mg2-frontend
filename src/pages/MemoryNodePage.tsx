@@ -241,7 +241,7 @@ export function MemoryNodePage() {
               "cards"
             `,
             lg: `
-              "nodes practice"
+              "nodes nodes"
               "cards practice"
             `,
           },

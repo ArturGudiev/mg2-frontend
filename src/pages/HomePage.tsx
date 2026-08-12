@@ -93,7 +93,8 @@ export function HomePage() {
                       {index + 1}.
                     </Typography>
                     <span>
-                      {node.name} (#{node.id})
+                      {node.name}
+                      {isAdmin ? ` (#${node.id})` : ''}
                     </span>
                     {isAdmin && node.shared && <Chip size="small" label="общий" color="info" />}
                   </Box>
