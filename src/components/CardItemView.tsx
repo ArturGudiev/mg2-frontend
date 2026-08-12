@@ -113,7 +113,7 @@ export function CardItemView({ item, editing = false, draft, onDraftChange }: Ca
               label="Код"
               value={draft.code ?? ''}
               onChange={(e) => onDraftChange({ code: e.target.value })}
-              InputProps={{ sx: { fontFamily: 'ui-monospace, monospace', fontSize: 13 } }}
+              slotProps={{ input: { sx: { fontFamily: 'ui-monospace, monospace', fontSize: 13 } } }}
             />
           </Stack>
         )
@@ -126,7 +126,7 @@ export function CardItemView({ item, editing = false, draft, onDraftChange }: Ca
             label="Формула"
             value={draft.formula ?? ''}
             onChange={(e) => onDraftChange({ formula: e.target.value })}
-            InputProps={{ sx: { fontFamily: 'ui-monospace, monospace' } }}
+            slotProps={{ input: { sx: { fontFamily: 'ui-monospace, monospace' } } }}
           />
         )
       case 'IMAGE':
