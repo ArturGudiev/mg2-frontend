@@ -17,7 +17,8 @@ export function LoginPage() {
   const navigate = useNavigate()
   // const [tab, setTab] = useState(0)
   // const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
+  // const [loginName, setLoginName] = useState('')
+  const [loginOrEmail, setLoginOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -32,11 +33,11 @@ export function LoginPage() {
     setError('')
     try {
       // if (tab === 0) {
-      //   await login(email, password)
+      //   await login(loginOrEmail, password)
       // } else {
-      //   await register(name, email, password)
+      //   await register(name, loginName, email, password)
       // }
-      await login(email, password)
+      await login(loginOrEmail, password)
       navigate('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка аутентификации')
@@ -75,19 +76,27 @@ export function LoginPage() {
         <Box component="form" onSubmit={submit}>
           <Stack spacing={2}>
             {/* {tab === 1 && (
-              <TextField
-                label="Имя"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
+              <>
+                <TextField
+                  label="Имя"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+                <TextField
+                  label="Логин"
+                  required
+                  value={loginName}
+                  onChange={(e) => setLoginName(e.target.value)}
+                />
+              </>
             )} */}
             <TextField
-              label="Эл. почта"
-              type="email"
+              label="Логин или эл. почта"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username"
+              value={loginOrEmail}
+              onChange={(e) => setLoginOrEmail(e.target.value)}
             />
             <TextField
               label="Пароль"

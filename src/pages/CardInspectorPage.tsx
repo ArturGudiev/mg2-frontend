@@ -1,25 +1,73 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
-import { cardsApi } from '../api'
-import { CardDialog } from '../components/CardDialog'
+import { cardItemsApi, cardsApi } from '../api'
+import { useAuth } from '../auth/AuthContext'
 import { CardView } from '../components/CardView'
-import type { Card, CardItemInput } from '../types/models'
+import { buildItemDrafts, type CardItemDraft } from '../components/CardItemView'
+import type { Card, CardItem } from '../types/models'
+
+function itemContentChanged(item: CardItem, draft: CardItemDraft): boolean {
+  const norm = (v: string | null | undefined) => v ?? ''
+  switch (item.type) {
+    case 'TEXT':
+    case 'MARKDOWN':
+      return norm(item.text) !== norm(draft.text)
+    case 'TEXT_WITH_HIGHLIGHTED_SYMBOL':
+    case 'WORD_WITH_STRESS':
+      return norm(item.text) !== norm(draft.text) || (item.index ?? null) !== (draft.index ?? null)
+    case 'CODE':
+      return norm(item.code) !== norm(draft.code) || norm(item.extension) !== norm(draft.extension)
+    case 'FORMULA':
+      return norm(item.formula) !== norm(draft.formula)
+    case 'IMAGE':
+      return norm(item.imagePath) !== norm(draft.imagePath) || norm(item.width) !== norm(draft.width)
+    default:
+      return false
+  }
+}
+
+function draftToUpdatePayload(item: CardItem, draft: CardItemDraft): Partial<CardItem> & { id: number } {
+  switch (item.type) {
+    case 'TEXT':
+    case 'MARKDOWN':
+      return { id: item.id, text: draft.text ?? '' }
+    case 'TEXT_WITH_HIGHLIGHTED_SYMBOL':
+    case 'WORD_WITH_STRESS':
+      return { id: item.id, text: draft.text ?? '', index: draft.index ?? null }
+    case 'CODE':
+      return { id: item.id, code: draft.code ?? '', extension: draft.extension ?? '' }
+    case 'FORMULA':
+      return { id: item.id, formula: draft.formula ?? '' }
+    case 'IMAGE':
+      return { id: item.id, imagePath: draft.imagePath ?? '', width: draft.width ?? '' }
+    default:
+      return { id: item.id }
+  }
+}
 
 export function CardInspectorPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const { user } = useAuth()
   const cardId = Number(id)
   const [card, setCard] = useState<Card | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [editOpen, setEditOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [drafts, setDrafts] = useState<Record<number, CardItemDraft>>({})
   const [saving, setSaving] = useState(false)
+
+  const returnTo =
+    typeof (location.state as { returnTo?: unknown } | null)?.returnTo === 'string'
+      ? (location.state as { returnTo: string }).returnTo
+      : null
 
   const load = async () => {
     setLoading(true)
@@ -35,13 +83,50 @@ export function CardInspectorPage() {
 
   useEffect(() => {
     void load()
+    setEditing(false)
+    setDrafts({})
   }, [cardId])
 
-  const save = async (question: CardItemInput[], answer: CardItemInput[]) => {
+  const canEdit = Boolean(card && user && user.id === card.userId)
+  const isAdmin = user?.role === 'admin'
+
+  const allItems = useMemo(
+    () => (card ? [...card.question, ...card.answer] : []),
+    [card],
+  )
+
+  const startEdit = () => {
+    if (!card) return
+    setDrafts(buildItemDrafts(allItems))
+    setEditing(true)
+    setError('')
+  }
+
+  const cancelEdit = () => {
+    setEditing(false)
+    setDrafts({})
+    setError('')
+  }
+
+  const save = async () => {
+    if (!card) return
     setSaving(true)
+    setError('')
     try {
-      const updated = await cardsApi.update({ id: cardId, question, answer })
+      const updates = allItems
+        .filter((item) => drafts[item.id] && itemContentChanged(item, drafts[item.id]))
+        .map((item) => draftToUpdatePayload(item, drafts[item.id]))
+
+      if (updates.length > 0) {
+        await Promise.all(updates.map((partial) => cardItemsApi.update(partial)))
+      }
+
+      const updated = await cardsApi.get(cardId)
       setCard(updated)
+      setEditing(false)
+      setDrafts({})
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось сохранить карточку')
     } finally {
       setSaving(false)
     }
@@ -63,47 +148,48 @@ export function CardInspectorPage() {
     <Stack spacing={2}>
       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
         <Typography variant="h4" sx={{ flexGrow: 1 }}>
-          Карточка #{card.id}
+          Карточка{isAdmin ? ` #${card.id}` : ''}
         </Typography>
         {card.parentNodes[0] != null && (
-          <Button onClick={() => navigate(`/memory-node/${card.parentNodes[0]}`)}>
+          <Button
+            disabled={saving}
+            onClick={() =>
+              navigate(returnTo ?? `/memory-node/${card.parentNodes[0]}`)
+            }
+          >
             Назад к разделу
           </Button>
         )}
-        <Button variant="contained" onClick={() => setEditOpen(true)}>
-          Редактировать
-        </Button>
+        {canEdit && !editing && (
+          <Button variant="contained" onClick={startEdit}>
+            Редактировать
+          </Button>
+        )}
+        {canEdit && editing && (
+          <>
+            <Button disabled={saving} onClick={cancelEdit}>
+              Отмена
+            </Button>
+            <Button variant="contained" disabled={saving} onClick={() => void save()}>
+              {saving ? 'Сохранение…' : 'Сохранить'}
+            </Button>
+          </>
+        )}
       </Box>
 
       {error && <Alert severity="error">{error}</Alert>}
-      <CardView card={card} showAnswer />
 
-      <CardDialog
-        open={editOpen}
-        title={`Редактировать карточку #${card.id}`}
-        submitting={saving}
-        initialQuestion={card.question.map(({ type, text, index, code, extension, formula, imagePath, width }) => ({
-          type,
-          text,
-          index,
-          code,
-          extension,
-          formula,
-          imagePath,
-          width,
-        }))}
-        initialAnswer={card.answer.map(({ type, text, index, code, extension, formula, imagePath, width }) => ({
-          type,
-          text,
-          index,
-          code,
-          extension,
-          formula,
-          imagePath,
-          width,
-        }))}
-        onClose={() => setEditOpen(false)}
-        onSubmit={save}
+      <CardView
+        card={card}
+        showAnswer
+        editing={editing}
+        drafts={drafts}
+        onDraftChange={(itemId, patch) => {
+          setDrafts((prev) => ({
+            ...prev,
+            [itemId]: { ...prev[itemId], ...patch },
+          }))
+        }}
       />
     </Stack>
   )

@@ -6,16 +6,39 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { useAuth } from '../auth/AuthContext'
 import type { Card } from '../types/models'
-import { CardItemView } from './CardItemView'
+import { CardItemView, type CardItemDraft } from './CardItemView'
 
 interface CardViewProps {
   card: Card
   showAnswer?: boolean
+  editing?: boolean
+  drafts?: Record<number, CardItemDraft>
+  onDraftChange?: (itemId: number, patch: CardItemDraft) => void
 }
 
-export function CardView({ card, showAnswer = true }: CardViewProps) {
+export function CardView({
+  card,
+  showAnswer = true,
+  editing = false,
+  drafts,
+  onDraftChange,
+}: CardViewProps) {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+
+  const renderItem = (item: typeof card.question[number]) => (
+    <CardItemView
+      key={item.id}
+      item={item}
+      editing={editing}
+      draft={drafts?.[item.id]}
+      onDraftChange={
+        onDraftChange
+          ? (patch) => onDraftChange(item.id, { ...drafts?.[item.id], ...patch })
+          : undefined
+      }
+    />
+  )
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
@@ -26,9 +49,7 @@ export function CardView({ card, showAnswer = true }: CardViewProps) {
         {isAdmin && card.shared && <Chip size="small" color="info" label="общий" />}
       </Stack>
       <Stack spacing={1.5} sx={{ mt: 1 }}>
-        {card.question.map((item) => (
-          <CardItemView key={item.id} item={item} />
-        ))}
+        {card.question.map(renderItem)}
       </Stack>
 
       {showAnswer && (
@@ -38,9 +59,7 @@ export function CardView({ card, showAnswer = true }: CardViewProps) {
             Ответ
           </Typography>
           <Stack spacing={1.5} sx={{ mt: 1 }}>
-            {card.answer.map((item) => (
-              <CardItemView key={item.id} item={item} />
-            ))}
+            {card.answer.map(renderItem)}
           </Stack>
         </>
       )}

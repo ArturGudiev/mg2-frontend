@@ -32,6 +32,10 @@ interface CardsTableProps {
   isAdmin?: boolean
   textFilter?: string
   onTextFilterChange?: (value: string) => void
+  page?: number
+  rowsPerPage?: number
+  onPageChange?: (page: number) => void
+  onRowsPerPageChange?: (rowsPerPage: number) => void
   onOpen: (card: Card) => void
   onCreate: () => void
   onDelete: (ids: number[]) => void | Promise<void>
@@ -42,6 +46,10 @@ export function CardsTable({
   isAdmin = false,
   textFilter,
   onTextFilterChange,
+  page: pageProp,
+  rowsPerPage: rowsPerPageProp,
+  onPageChange,
+  onRowsPerPageChange,
   onOpen,
   onCreate,
   onDelete,
@@ -49,13 +57,18 @@ export function CardsTable({
   const [selected, setSelected] = useState<number[]>([])
   const [orderBy, setOrderBy] = useState<SortKey>('count')
   const [order, setOrder] = useState<'asc' | 'desc'>('asc')
-  const [page, setPage] = useState(0)
-  const [rowsPerPage, setRowsPerPage] = useState(10)
+  const [pageState, setPageState] = useState(0)
+  const [rowsPerPageState, setRowsPerPageState] = useState(10)
   const [deleting, setDeleting] = useState(false)
 
-  useEffect(() => {
-    setPage(0)
-  }, [cards])
+  const controlled = onPageChange != null
+  const page = controlled ? (pageProp ?? 0) : pageState
+  const rowsPerPage = controlled ? (rowsPerPageProp ?? 10) : rowsPerPageState
+
+  const setPage = (p: number) => {
+    if (onPageChange) onPageChange(p)
+    else setPageState(p)
+  }
 
   const sorted = useMemo(() => {
     const copy = [...cards]
@@ -70,6 +83,11 @@ export function CardsTable({
     })
     return copy
   }, [cards, order, orderBy])
+
+  const maxPage = Math.max(0, Math.ceil(sorted.length / rowsPerPage) - 1)
+  useEffect(() => {
+    if (page > maxPage) setPage(maxPage)
+  }, [page, maxPage])
 
   const pageRows = sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
   const allSelected = pageRows.length > 0 && pageRows.every((c) => selected.includes(c.id))
@@ -280,8 +298,13 @@ export function CardsTable({
         onPageChange={(_, p) => setPage(p)}
         rowsPerPage={rowsPerPage}
         onRowsPerPageChange={(e) => {
-          setRowsPerPage(parseInt(e.target.value, 10))
-          setPage(0)
+          const next = parseInt(e.target.value, 10)
+          if (onRowsPerPageChange) {
+            onRowsPerPageChange(next)
+          } else {
+            setRowsPerPageState(next)
+            setPageState(0)
+          }
         }}
       />
     </Paper>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import Alert from '@mui/material/Alert'
@@ -44,9 +44,23 @@ function cardMatchesText(card: Card, query: string): boolean {
   return items.some((item) => cardItemSearchText(item).toLowerCase().includes(q))
 }
 
+const CARDS_ROWS_OPTIONS = [5, 10, 25, 50] as const
+
+function parseCardsPage(raw: string | null): number {
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0
+}
+
+function parseCardsRows(raw: string | null): number {
+  const n = Number(raw)
+  return (CARDS_ROWS_OPTIONS as readonly number[]).includes(n) ? n : 10
+}
+
 export function MemoryNodePage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const nodeId = Number(id)
@@ -65,6 +79,28 @@ export function MemoryNodePage() {
   const [saving, setSaving] = useState(false)
   const [creatingChild, setCreatingChild] = useState(false)
   const [settingsAnchor, setSettingsAnchor] = useState<null | HTMLElement>(null)
+
+  const cardsPage = parseCardsPage(searchParams.get('page'))
+  const cardsRowsPerPage = parseCardsRows(searchParams.get('rows'))
+
+  const patchCardsPaging = useCallback(
+    (patch: { page?: number; rows?: number }) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          const page = patch.page !== undefined ? patch.page : parseCardsPage(next.get('page'))
+          const rows = patch.rows !== undefined ? patch.rows : parseCardsRows(next.get('rows'))
+          if (page <= 0) next.delete('page')
+          else next.set('page', String(page))
+          if (rows === 10) next.delete('rows')
+          else next.set('rows', String(rows))
+          return next
+        },
+        { replace: true },
+      )
+    },
+    [setSearchParams],
+  )
 
   const load = useCallback(async () => {
     if (!Number.isFinite(nodeId) || nodeId <= 0) {
@@ -276,8 +312,19 @@ export function MemoryNodePage() {
               cards={filteredCards}
               isAdmin={isAdmin}
               textFilter={cardTextFilter}
-              onTextFilterChange={setCardTextFilter}
-              onOpen={(card) => navigate(`/card/${card.id}`)}
+              onTextFilterChange={(value) => {
+                setCardTextFilter(value)
+                if (cardsPage !== 0) patchCardsPaging({ page: 0 })
+              }}
+              page={cardsPage}
+              rowsPerPage={cardsRowsPerPage}
+              onPageChange={(p) => patchCardsPaging({ page: p })}
+              onRowsPerPageChange={(n) => patchCardsPaging({ page: 0, rows: n })}
+              onOpen={(card) =>
+                navigate(`/card/${card.id}`, {
+                  state: { returnTo: `${location.pathname}${location.search}` },
+                })
+              }
               onCreate={() => setCreateCardOpen(true)}
               onDelete={(ids) => void deleteCards(ids)}
             />
