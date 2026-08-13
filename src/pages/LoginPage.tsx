@@ -63,7 +63,7 @@ export function LoginPage() {
         </Typography>
         <Typography color="text.secondary" sx={{ mb: 2 }}>
           {/* Войдите или зарегистрируйтесь, чтобы открыть маршруты, разделы и карточки. */}
-          Войдите, чтобы открыть маршруты, разделы и карточки.
+          Войдите, чтобы открыть разделы и карточки.
         </Typography>
 
         {/* Registration temporarily disabled
