@@ -30,7 +30,7 @@ interface MemoryNodeDialogProps {
 
 export function MemoryNodeDialog({
   open,
-  title = 'Новый раздел памяти',
+  title = 'Новый раздел',
   submitting,
   defaultShared = false,
   allowShared = false,
