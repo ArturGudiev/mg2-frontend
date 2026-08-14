@@ -29,7 +29,8 @@ function preview(card: Card): string {
 
 interface CardsTableProps {
   cards: Card[]
-  isAdmin?: boolean
+  canCreate?: boolean
+  canDelete?: boolean
   textFilter?: string
   onTextFilterChange?: (value: string) => void
   page?: number
@@ -43,7 +44,8 @@ interface CardsTableProps {
 
 export function CardsTable({
   cards,
-  isAdmin = false,
+  canCreate = false,
+  canDelete = false,
   textFilter,
   onTextFilterChange,
   page: pageProp,
@@ -126,7 +128,7 @@ export function CardsTable({
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
           <Typography variant="h6">Карточки</Typography>
-          {isAdmin && (
+          {canCreate && (
             <IconButton
               color="primary"
               onClick={onCreate}
@@ -153,7 +155,8 @@ export function CardsTable({
               }}
             />
           )}
-          <IconButton
+          {canDelete && (
+            <IconButton
             color="error"
             disabled={deleteDisabled}
             onClick={handleDelete}
@@ -169,6 +172,8 @@ export function CardsTable({
           >
             <DeleteIcon />
           </IconButton>
+          )}
+          {canDelete && (
           <Button
             color="error"
             startIcon={<DeleteIcon />}
@@ -178,7 +183,8 @@ export function CardsTable({
           >
             Удалить
           </Button>
-          {isAdmin && (
+          )}
+          {canCreate && (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -196,6 +202,7 @@ export function CardsTable({
           <TableHead>
             <TableRow>
               <TableCell padding="checkbox">
+                {canDelete ? (
                 <Checkbox
                   checked={allSelected}
                   indeterminate={selected.length > 0 && !allSelected}
@@ -210,6 +217,7 @@ export function CardsTable({
                     }
                   }}
                 />
+                ) : null}
               </TableCell>
               <TableCell width={56} sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                 №
@@ -240,16 +248,18 @@ export function CardsTable({
                   padding="checkbox"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <Checkbox
-                    checked={selected.includes(card.id)}
-                    onChange={(e) => {
-                      setSelected((prev) =>
-                        e.target.checked
-                          ? [...prev, card.id]
-                          : prev.filter((id) => id !== card.id),
-                      )
-                    }}
-                  />
+                  {canDelete ? (
+                    <Checkbox
+                      checked={selected.includes(card.id)}
+                      onChange={(e) => {
+                        setSelected((prev) =>
+                          e.target.checked
+                            ? [...prev, card.id]
+                            : prev.filter((id) => id !== card.id),
+                        )
+                      }}
+                    />
+                  ) : null}
                 </TableCell>
                 <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                   {page * rowsPerPage + index + 1}

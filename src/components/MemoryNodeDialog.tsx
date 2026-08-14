@@ -23,6 +23,7 @@ interface MemoryNodeDialogProps {
   submitting?: boolean
   defaultShared?: boolean
   allowShared?: boolean
+  allowAliases?: boolean
   onClose: () => void
   onSubmit: (values: NewMemoryNodeValues) => Promise<void> | void
 }
@@ -33,6 +34,7 @@ export function MemoryNodeDialog({
   submitting,
   defaultShared = false,
   allowShared = false,
+  allowAliases = false,
   onClose,
   onSubmit,
 }: MemoryNodeDialogProps) {
@@ -56,10 +58,12 @@ export function MemoryNodeDialog({
     await onSubmit({
       name: name.trim(),
       description: description.trim(),
-      aliases: aliases
-        .split(',')
-        .map((a) => a.trim())
-        .filter(Boolean),
+      aliases: allowAliases
+        ? aliases
+            .split(',')
+            .map((a) => a.trim())
+            .filter(Boolean)
+        : [],
       shared: allowShared ? shared : false,
     })
     onClose()
@@ -92,11 +96,13 @@ export function MemoryNodeDialog({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
-          <TextField
-            label="Псевдонимы (через запятую)"
-            value={aliases}
-            onChange={(e) => setAliases(e.target.value)}
-          />
+          {allowAliases && (
+            <TextField
+              label="Псевдонимы (через запятую)"
+              value={aliases}
+              onChange={(e) => setAliases(e.target.value)}
+            />
+          )}
           {allowShared && (
             <FormControlLabel
               control={

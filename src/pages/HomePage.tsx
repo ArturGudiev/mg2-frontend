@@ -54,13 +54,6 @@ export function HomePage() {
 
   return (
     <Stack spacing={2}>
-      <Box>
-        {/* <Typography variant="h4">Маршруты</Typography>
-        <Typography color="text.secondary">
-          Выберите корневой раздел, чтобы перейти к дочерним разделам и карточкам.
-        </Typography> */}
-      </Box>
-
       {error && <Alert severity="error">{error}</Alert>}
 
       <Paper variant="outlined">
@@ -75,13 +68,13 @@ export function HomePage() {
           }}
         >
           <Typography variant="h6">Разделы</Typography>
-          {isAdmin &&(<IconButton
+          <IconButton
             color="primary"
             aria-label="добавить корневой раздел"
             onClick={() => setCreateOpen(true)}
           >
             <AddIcon />
-          </IconButton>)}
+          </IconButton>
         </Box>
         <List>
           {nodes.map((node, index) => (
@@ -109,10 +102,10 @@ export function HomePage() {
               />
             </ListItemButton>
           ))}
-          {nodes.length === 0 && isAdmin && (
+          {nodes.length === 0 && (
             <Box sx={{ p: 3 }}>
               <Typography color="text.secondary">
-                Маршрутов пока нет. Нажмите +, чтобы создать корневой раздел.
+                Разделов пока нет. Нажмите +, чтобы создать корневой раздел.
               </Typography>
             </Box>
           )}
@@ -123,6 +116,7 @@ export function HomePage() {
         open={createOpen}
         submitting={creating}
         allowShared={isAdmin}
+        allowAliases={isAdmin}
         onClose={() => setCreateOpen(false)}
         onSubmit={async ({ name, description, aliases, shared }) => {
           setCreating(true)

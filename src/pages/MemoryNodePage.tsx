@@ -23,6 +23,7 @@ import { CardsTable } from '../components/CardsTable'
 import { MemoryNodeDialog } from '../components/MemoryNodeDialog'
 import { NodeBrowser } from '../components/NodeBrowser'
 import { ParentsPath } from '../components/ParentsPath'
+import { SimpleTextCardDialog } from '../components/SimpleTextCardDialog'
 import type {
   Card,
   CardItem,
@@ -79,6 +80,7 @@ export function MemoryNodePage() {
   const [saving, setSaving] = useState(false)
   const [creatingChild, setCreatingChild] = useState(false)
   const [settingsAnchor, setSettingsAnchor] = useState<null | HTMLElement>(null)
+  const canManage = Boolean(user && node && (isAdmin || user.id === node.userId))
 
   const cardsPage = parseCardsPage(searchParams.get('page'))
   const cardsRowsPerPage = parseCardsRows(searchParams.get('rows'))
@@ -160,6 +162,20 @@ export function MemoryNodePage() {
     setSaving(true)
     try {
       await cardsApi.create({ _id: nodeId, question, answer })
+      await load()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const createSimpleCard = async (question: string, answer: string) => {
+    setSaving(true)
+    try {
+      await cardsApi.create({
+        _id: nodeId,
+        question: [{ type: 'TEXT', text: question }],
+        answer: [{ type: 'TEXT', text: answer }],
+      })
       await load()
     } finally {
       setSaving(false)
@@ -284,11 +300,12 @@ export function MemoryNodePage() {
           alignItems: 'start',
         }}
       >
-        {(isAdmin || children.length > 0) && (
+        {(canManage || children.length > 0) && (
           <Box sx={{ gridArea: 'nodes' }}>
             <NodeBrowser
               children={children}
               isAdmin={isAdmin}
+              canAdd={canManage}
               onOpenChild={(child) => navigate(`/memory-node/${child.id}`)}
               onAddChild={() => setCreateChildOpen(true)}
             />
@@ -306,11 +323,12 @@ export function MemoryNodePage() {
           </Box>
         )}
 
-        {(isAdmin || cards.length > 0) && (
+        {(canManage || cards.length > 0) && (
           <Box sx={{ gridArea: 'cards' }}>
             <CardsTable
               cards={filteredCards}
-              isAdmin={isAdmin}
+              canCreate={canManage}
+              canDelete={canManage}
               textFilter={cardTextFilter}
               onTextFilterChange={(value) => {
                 setCardTextFilter(value)
@@ -332,13 +350,23 @@ export function MemoryNodePage() {
         )}
       </Box>
 
-      <CardDialog
-        open={createCardOpen}
-        title="Новая карточка"
-        submitting={saving}
-        onClose={() => setCreateCardOpen(false)}
-        onSubmit={createCard}
-      />
+      {isAdmin ? (
+        <CardDialog
+          open={createCardOpen}
+          title="Новая карточка"
+          submitting={saving}
+          onClose={() => setCreateCardOpen(false)}
+          onSubmit={createCard}
+        />
+      ) : (
+        <SimpleTextCardDialog
+          open={createCardOpen}
+          title="Новая карточка"
+          submitting={saving}
+          onClose={() => setCreateCardOpen(false)}
+          onSubmit={createSimpleCard}
+        />
+      )}
 
       <MemoryNodeDialog
         open={createChildOpen}
@@ -346,6 +374,7 @@ export function MemoryNodePage() {
         submitting={creatingChild}
         defaultShared={node.shared}
         allowShared={isAdmin}
+        allowAliases={isAdmin}
         onClose={() => setCreateChildOpen(false)}
         onSubmit={async ({ name, description, aliases, shared }) => {
           setCreatingChild(true)

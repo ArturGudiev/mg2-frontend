@@ -79,20 +79,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
               <IconButton
                 color="inherit"
-                aria-label="выйти"
-                onClick={() => logout()}
-                sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
-              >
-                <LogoutIcon />
-              </IconButton>
-              <IconButton
-                color="inherit"
                 aria-label="аккаунт"
                 aria-controls={accountAnchor ? 'account-menu' : undefined}
                 aria-haspopup="true"
                 aria-expanded={accountAnchor ? 'true' : undefined}
                 onClick={(e) => setAccountAnchor(e.currentTarget)}
-                sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
               >
                 <LogoutIcon />
               </IconButton>

@@ -12,11 +12,18 @@ import type { MemoryNode } from '../types/models'
 interface NodeBrowserProps {
   children: MemoryNode[]
   isAdmin?: boolean
+  canAdd?: boolean
   onOpenChild: (node: MemoryNode) => void
   onAddChild: () => void
 }
 
-export function NodeBrowser({ children, isAdmin = false, onOpenChild, onAddChild }: NodeBrowserProps) {
+export function NodeBrowser({
+  children,
+  isAdmin = false,
+  canAdd = false,
+  onOpenChild,
+  onAddChild,
+}: NodeBrowserProps) {
   return (
     <Paper variant="outlined">
       <Box
@@ -30,10 +37,11 @@ export function NodeBrowser({ children, isAdmin = false, onOpenChild, onAddChild
         }}
       >
         <Typography variant="h6">Разделы</Typography>
-        {isAdmin && <IconButton color="primary" aria-label="добавить раздел" onClick={onAddChild}>
+        {canAdd && (
+          <IconButton color="primary" aria-label="добавить раздел" onClick={onAddChild}>
             <AddIcon />
           </IconButton>
-        }
+        )}
       </Box>
       <List dense>
         {children.map((child, index) => (
@@ -55,7 +63,7 @@ export function NodeBrowser({ children, isAdmin = false, onOpenChild, onAddChild
             />
           </ListItemButton>
         ))}
-        {children.length === 0 && isAdmin && (
+        {children.length === 0 && canAdd && (
           <Box sx={{ px: 2, py: 1.5 }}>
             <Typography color="text.secondary" variant="body2">
               Дочерних разделов нет. Нажмите +, чтобы добавить.
