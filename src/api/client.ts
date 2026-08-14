@@ -2,19 +2,21 @@ import { API_BASE } from './config'
 
 export class ApiError extends Error {
   status: number
+  email?: string
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, email?: string) {
     super(message)
     this.status = status
+    this.email = email
   }
 }
 
-async function parseError(res: Response): Promise<string> {
+async function parseError(res: Response): Promise<{ message: string; email?: string }> {
   try {
-    const data = (await res.json()) as { error?: string }
-    return data.error ?? res.statusText
+    const data = (await res.json()) as { error?: string; email?: string }
+    return { message: data.error ?? res.statusText, email: data.email }
   } catch {
-    return res.statusText || 'Ошибка запроса'
+    return { message: res.statusText || 'Ошибка запроса' }
   }
 }
 
@@ -60,7 +62,8 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
-    throw new ApiError(res.status, await parseError(res))
+    const parsed = await parseError(res)
+    throw new ApiError(res.status, parsed.message, parsed.email)
   }
 
   if (res.status === 204) {

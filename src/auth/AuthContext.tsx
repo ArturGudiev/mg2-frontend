@@ -15,7 +15,9 @@ interface AuthContextValue {
   user: User | null
   loading: boolean
   login: (loginOrEmail: string, password: string) => Promise<void>
-  register: (name: string, login: string, email: string, password: string) => Promise<void>
+  register: (name: string, email: string, password: string, addSampleCards?: boolean) => Promise<void>
+  verifyEmail: (email: string, code: string) => Promise<void>
+  resendCode: (email: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -50,10 +52,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user)
   }, [])
 
-  const register = useCallback(async (name: string, loginName: string, email: string, password: string) => {
-    await authApi.register(name, loginName, email, password)
-    const res = await authApi.login(loginName, password)
+  const register = useCallback(
+    async (name: string, email: string, password: string, addSampleCards = false) => {
+      await authApi.register(name, email, password, addSampleCards)
+    },
+    [],
+  )
+
+  const verifyEmail = useCallback(async (email: string, code: string) => {
+    const res = await authApi.verify(email, code)
     setUser(res.user)
+  }, [])
+
+  const resendCode = useCallback(async (email: string) => {
+    await authApi.resendCode(email)
   }, [])
 
   const logout = useCallback(async () => {
@@ -65,8 +77,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, loading, login, register, logout }),
-    [user, loading, login, register, logout],
+    () => ({ user, loading, login, register, verifyEmail, resendCode, logout }),
+    [user, loading, login, register, verifyEmail, resendCode, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

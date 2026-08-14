@@ -8,10 +8,22 @@ export const authApi = {
       body: JSON.stringify({ login, password }),
     }),
 
-  register: (name: string, login: string, email: string, password: string) =>
+  register: (name: string, email: string, password: string, addSampleCards = false) =>
     apiFetch<User>('/users', {
       method: 'POST',
-      body: JSON.stringify({ name, login, email, password }),
+      body: JSON.stringify({ name, email, password, addSampleCards }),
+    }),
+
+  verify: (email: string, code: string) =>
+    apiFetch<LoginResponse>('/users/verify', {
+      method: 'POST',
+      body: JSON.stringify({ email, code }),
+    }),
+
+  resendCode: (email: string) =>
+    apiFetch<{ ok: boolean }>('/users/resend-code', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
     }),
 
   me: () => apiFetch<User>('/users/me'),

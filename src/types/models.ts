@@ -17,6 +17,7 @@ export interface User {
   login: string
   email: string
   role: UserRole
+  verified?: boolean
 }
 
 export interface LoginResponse {
